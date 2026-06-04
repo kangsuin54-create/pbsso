@@ -76,7 +76,7 @@ export default function HomeScreen({ onStart, user, onLogout, playerData, action
             background: 'rgba(239,68,68,0.2)', border: 'none', borderRadius: '99px',
             padding: '4px 10px', fontSize: '12px', color: '#fca5a5',
             cursor: 'pointer', fontWeight: 'bold',
-          }}>로그아웃</button>
+          }}>처음부터</button>
         </div>
       )}
 

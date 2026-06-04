@@ -31,15 +31,33 @@ export default function AuthScreen({ onLogin }) {
       password,
       options: {
         data: { nickname, gender },
-        emailRedirectTo: 'https://pbs-social-trainer.vercel.app',
+        emailRedirectTo: window.location.origin,
       },
     })
     setLoading(false)
-    if (err) { setError('회원가입에 실패했어요: ' + err.message); return }
+    if (err) {
+      console.error('[Supabase signUp error]', err)
+      const msg = err.message || ''
+      if (msg.includes('already registered') || msg.includes('already been registered')) {
+        setError('이미 가입된 이메일이에요! 로그인 탭을 눌러 로그인해주세요 👆')
+        setMode('login')
+      } else if (msg.includes('rate limit') || msg.includes('Email rate')) {
+        setError('잠시 후 다시 시도해주세요 (이메일 한도 초과) ⏳')
+      } else if (msg.includes('Invalid') || msg.includes('invalid')) {
+        setError('이메일 형식을 확인해주세요 📧')
+      } else if (msg.includes('fetch') || msg.includes('network') || msg === '') {
+        setError('Supabase 서버에 연결할 수 없어요.\nsupabase.com/dashboard에서 프로젝트가 일시 정지됐는지 확인해주세요 🔧')
+      } else {
+        setError('회원가입 오류: ' + msg)
+      }
+      return
+    }
     if (data.user && !data.session) {
-      setSuccess('이메일을 확인해서 인증을 완료해주세요! 📧')
-    } else {
+      setSuccess('가입 완료! 📧 이메일 인증 링크를 클릭한 후 로그인해주세요.')
+    } else if (data.user) {
       onLogin(data.user)
+    } else {
+      setError('알 수 없는 오류가 발생했어요. 잠시 후 다시 시도해주세요.')
     }
   }
 
