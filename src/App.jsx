@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import './index.css'
-import { makeInitialPlayer } from './hooks/usePlayerData'
+import { INITIAL_EQUIPPED } from './data/shopItems'
 import LevelUpPopup from './components/LevelUpPopup'
 import HomeScreen from './screens/HomeScreen'
 import StoryIntroScreen from './screens/StoryIntroScreen'
-import StageSelectScreen from './screens/StageSelectScreen'
-import LearningScreen from './screens/LearningScreen'
+import SchoolExteriorScreen from './screens/SchoolExteriorScreen'
+import CorridorScreen from './screens/CorridorScreen'
+import NpcDialogueScreen from './screens/NpcDialogueScreen'
 import SimulationScreen from './screens/SimulationScreen'
+import SchoolBrightenScreen from './screens/SchoolBrightenScreen'
 import DashboardScreen from './screens/DashboardScreen'
 import ShopScreen from './screens/ShopScreen'
 import MyPageScreen from './screens/MyPageScreen'
@@ -27,6 +29,25 @@ function savePlayer(data) {
 }
 
 const LOCAL_USER = { id: 'local', email: 'player@lumos.app', user_metadata: { nickname: '루모스 정화단원' } }
+const STARTER_ITEM_IDS = ['hat_baseball', 'acc_ribbon', 'pet_cat', 'bg_rainbow']
+
+function makeInitialPlayer(user) {
+  return {
+    name: user?.user_metadata?.nickname || '용감한 모험가',
+    gender: user?.user_metadata?.gender || 'male',
+    exp: 0, level: 1, teamPoints: 0, coins: 50,
+    badges: [], items: [],
+    ownedItems: [...STARTER_ITEM_IDS],
+    equippedItems: { ...INITIAL_EQUIPPED },
+    progress: { selfControl: 0, social: 0, ruleUnderstanding: 0, positiveRelationship: 0 },
+    sessionRewards: [],
+    clearedStages: [],
+    currentStageCards: [],
+    collectedCards: [],
+    lumosItems: [],
+    crystalPower: 0,
+  }
+}
 
 export default function App() {
   const [screen, setScreen] = useState('home')
@@ -74,6 +95,11 @@ export default function App() {
   const addBadge = (badge) => setPlayerData(prev => {
     if (prev.badges.includes(badge)) return prev
     return { ...prev, badges: [...prev.badges, badge], sessionRewards: [...prev.sessionRewards, { type: 'badge', name: badge }] }
+  })
+
+  const collectCard = (cardId) => setPlayerData(prev => {
+    if (prev.collectedCards?.includes(cardId)) return prev
+    return { ...prev, collectedCards: [...(prev.collectedCards || []), cardId] }
   })
 
   const addItem = (item) => setPlayerData(prev => ({
@@ -136,7 +162,7 @@ export default function App() {
   }
 
   const gameActions = {
-    addExp, addCoins, addTeamPoints, addBadge, addItem,
+    addExp, addCoins, addTeamPoints, addBadge, addItem, collectCard,
     updateProgress, addSessionReward, clearStage,
     buyItem, toggleEquip, unequip, setGender,
     completeMission: () => {},
@@ -158,15 +184,24 @@ export default function App() {
       onComplete={() => {
         localStorage.setItem(STORY_KEY, 'true')
         setStorySeen(true)
-        setScreen('stage_select')
+        setScreen('school_exterior')
       }}
     />,
-    stage_select: <StageSelectScreen
-      playerData={playerData}
-      onEnterStage={(stageId) => { setCurrentStage(stageId); setScreen('learning') }}
-      onBack={() => setScreen('home')}
+    school_exterior: <SchoolExteriorScreen
+      onEnter={() => setScreen('stage_select')}
     />,
-    learning: <LearningScreen
+    stage_select: <CorridorScreen
+      playerData={playerData}
+      actions={gameActions}
+      onEnterStage={(stageId) => {
+        if (stageId === 'final') { setScreen('finale'); return }
+        setCurrentStage(stageId)
+        setScreen('learning')
+      }}
+      onBack={() => setScreen('home')}
+      onViewFinale={() => setScreen('finale')}
+    />,
+    learning: <NpcDialogueScreen
       stageId={currentStage}
       actions={gameActions}
       onComplete={() => setScreen('simulation')}
@@ -176,7 +211,10 @@ export default function App() {
       stageId={currentStage}
       actions={gameActions}
       onComplete={() => setScreen('stage_select')}
-      onAllCleared={() => setScreen('dashboard')}
+      onAllCleared={() => setScreen('finale')}
+    />,
+    finale: <SchoolBrightenScreen
+      onContinue={() => setScreen('dashboard')}
     />,
     dashboard: <DashboardScreen
       playerData={playerData}

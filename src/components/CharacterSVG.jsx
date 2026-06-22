@@ -1,3 +1,5 @@
+import { LUMOS_STAGES } from '../data/lumosStages'
+
 /*
   스크린샷 분석 기준 위치 보정
   컨테이너: 200×270 / 캐릭터 이미지: top=35, 200×200
@@ -72,7 +74,9 @@ export default function CharacterSVG({ equipped, gender = 'male', size = 'md', p
   const W     = Math.round(200 * scale)
   const H     = Math.round(270 * scale)
 
-  const charSrc = `/items/character_${gender === 'female' ? 'female' : 'male'}.jpg`
+  const allCleared = (playerData?.clearedStages?.length || 0) >= LUMOS_STAGES.length
+  const charPrefix = allCleared ? 'avatar' : 'character'
+  const charSrc = `/items/${charPrefix}_${gender === 'female' ? 'female' : 'male'}.jpg`
   const bgTheme = background ? BG_THEMES[background.id] : null
 
   const defaultBg = gender === 'female'

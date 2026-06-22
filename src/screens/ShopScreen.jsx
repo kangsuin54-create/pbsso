@@ -1,8 +1,57 @@
 import { useState } from 'react'
 import { SHOP_ITEMS, CATEGORIES } from '../data/shopItems'
+import { LUMOS_STAGES } from '../data/lumosStages'
 import CharacterSVG from '../components/CharacterSVG'
 import BottomNav from '../components/BottomNav'
 import useIsMobile from '../hooks/useIsMobile'
+
+function CardCollection({ collectedCards }) {
+  const totalCards = LUMOS_STAGES.reduce((sum, s) => sum + s.skillCards.length, 0)
+  const collectedCount = collectedCards.length
+
+  return (
+    <div>
+      <div style={{
+        background: 'linear-gradient(135deg, #ede9fe, #fae8ff)', border: '2px solid #c4b5fd',
+        borderRadius: '14px', padding: '12px 16px', marginBottom: '14px', textAlign: 'center',
+      }}>
+        <span style={{ fontWeight: 'bold', color: '#7c3aed', fontSize: '14px' }}>
+          📖 수집한 카드 {collectedCount} / {totalCards}
+        </span>
+      </div>
+      {LUMOS_STAGES.map(stage => (
+        <div key={stage.id} style={{ marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+            <span style={{ fontSize: '16px' }}>{stage.monster.emoji}</span>
+            <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#4b5563' }}>{stage.classroom}</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
+            {stage.skillCards.map(card => {
+              const collected = collectedCards.includes(card.id)
+              return (
+                <div key={card.id} style={{
+                  background: collected ? 'white' : '#f3f4f6',
+                  border: `1.5px solid ${collected ? '#a78bfa' : '#e5e7eb'}`,
+                  borderRadius: '12px', padding: '8px 4px', textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: '22px', filter: collected ? 'none' : 'grayscale(100%) opacity(0.4)' }}>
+                    {collected ? card.emoji : '❓'}
+                  </div>
+                  <div style={{
+                    fontSize: '9px', marginTop: '2px', lineHeight: '1.2',
+                    color: collected ? '#6d28d9' : '#9ca3af', fontWeight: collected ? 'bold' : 'normal',
+                  }}>
+                    {collected ? card.name : '???'}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export default function ShopScreen({ playerData, actions }) {
   const isMobile = useIsMobile()
@@ -112,7 +161,10 @@ export default function ShopScreen({ playerData, actions }) {
           ))}
         </div>
 
-        {/* 아이템 그리드 */}
+        {/* 카드 도감 또는 아이템 그리드 */}
+        {selectedCategory === 'cards' ? (
+          <CardCollection collectedCards={playerData.collectedCards || []} />
+        ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
           {filtered.map(item => {
             const isOwned = owned.includes(item.id)
@@ -161,6 +213,7 @@ export default function ShopScreen({ playerData, actions }) {
             )
           })}
         </div>
+        )}
       </div>
 
       <BottomNav current="shop" onNavigate={actions.goTo} />

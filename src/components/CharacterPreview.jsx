@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { LUMOS_STAGES } from '../data/lumosStages'
 
 // 이미지 로드 실패 시 이모지로 폴백
 function ItemLayer({ src, alt, emoji, style }) {
@@ -40,6 +41,9 @@ export default function CharacterPreview({ equipped, size = 'md', playerData, ge
   const bgStyle = background?.bg
     ? { background: background.bg }
     : { background: 'linear-gradient(180deg, #e0f2fe 0%, #bbf7d0 100%)' }
+
+  const allCleared = (playerData?.clearedStages?.length || 0) >= LUMOS_STAGES.length
+  const charPrefix = allCleared ? 'avatar' : 'character'
 
   return (
     <div style={{
@@ -89,7 +93,7 @@ export default function CharacterPreview({ equipped, size = 'md', playerData, ge
 
       {/* 메인 캐릭터 */}
       <CharacterLayer
-        src={`/items/character_${gender}.jpg`} gender={gender}
+        src={`/items/${charPrefix}_${gender}.jpg`} gender={gender}
         style={{
           position: 'absolute', bottom: 0, left: '50%', transform: 'translateX(-50%)',
           width: isLg ? 150 : 110, height: isLg ? 200 : 148,

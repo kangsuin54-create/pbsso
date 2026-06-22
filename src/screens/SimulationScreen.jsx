@@ -1,22 +1,25 @@
 import { useState, useEffect } from 'react'
 import { LUMOS_STAGES } from '../data/lumosStages'
 import useIsMobile from '../hooks/useIsMobile'
+import MonsterImage from '../components/MonsterImage'
+import MinigameRouter from '../components/minigames/MinigameRouter'
 
-// 몬스터 어둠 게이지
-function DarkGauge({ value, color }) {
+// 몬스터 어둠 게이지 — RPG HP바 스타일 (어두울수록 붉게, 정화될수록 황금색으로)
+function DarkGauge({ value }) {
+  const barColor = value > 50 ? '#ef4444' : value > 0 ? '#fbbf24' : '#34d399'
   return (
     <div style={{ width: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
         <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px' }}>어둠 수치</span>
         <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '11px', fontWeight: 'bold' }}>{value}%</span>
       </div>
-      <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: '8px', height: '12px', overflow: 'hidden' }}>
+      <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: '8px', height: '14px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.15)' }}>
         <div style={{
           height: '100%', borderRadius: '8px',
-          background: `linear-gradient(90deg, ${color}, #6366f1)`,
+          background: `linear-gradient(90deg, ${barColor}, ${barColor}cc)`,
           width: `${value}%`,
-          transition: 'width 0.8s ease',
-          boxShadow: `0 0 10px ${color}60`,
+          transition: 'width 0.8s ease, background 0.8s ease',
+          boxShadow: `0 0 10px ${barColor}80`,
         }} />
       </div>
     </div>
@@ -58,7 +61,11 @@ function PurificationComplete({ stage, onContinue }) {
     }}>
       <div style={{ fontSize: '80px', marginBottom: '16px', animation: 'spin 1s ease' }}>✨</div>
       <h2 style={{ color: '#fbbf24', fontSize: '24px', fontWeight: 'bold', marginBottom: '8px' }}>정화 완료!</h2>
-      <div style={{ fontSize: '48px', marginBottom: '12px' }}>{stage.monster.emoji} → {stage.purificationItem.emoji}</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '12px' }}>
+        <MonsterImage src={stage.monster.image} emoji={stage.monster.emoji} size={48} />
+        <span style={{ fontSize: '32px', color: 'rgba(255,255,255,0.6)' }}>→</span>
+        <MonsterImage src={stage.purificationItem.image} emoji={stage.purificationItem.emoji} size={48} />
+      </div>
       <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', marginBottom: '6px' }}>
         {stage.monster.name}이(가) 빛을 되찾았어요!
       </p>
@@ -70,7 +77,9 @@ function PurificationComplete({ stage, onContinue }) {
         borderRadius: '16px', padding: '16px', marginBottom: '24px', minWidth: '240px',
       }}>
         <div style={{ color: '#fbbf24', fontWeight: 'bold', fontSize: '13px', marginBottom: '8px' }}>🎁 정화 아이템 획득!</div>
-        <div style={{ fontSize: '28px', marginBottom: '4px' }}>{stage.purificationItem.emoji}</div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '4px' }}>
+          <MonsterImage src={stage.purificationItem.image} emoji={stage.purificationItem.emoji} size={28} />
+        </div>
         <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>{stage.purificationItem.name}</div>
       </div>
       <button onClick={onContinue} style={{
@@ -90,6 +99,7 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
   const stage = LUMOS_STAGES.find(s => s.id === stageId)
   const [darkness, setDarkness] = useState(100)
   const [usedCardIds, setUsedCardIds] = useState([])
+  const [activeCard, setActiveCard] = useState(null)
   const [flashCard, setFlashCard] = useState(null)
   const [purified, setPurified] = useState(false)
   const pad = isMobile ? 16 : 24
@@ -99,7 +109,13 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
   const alreadyCleared = playerData?.clearedStages?.includes(stageId)
 
   const handleUseCard = (card) => {
-    if (usedCardIds.includes(card.id) || flashCard) return
+    if (usedCardIds.includes(card.id) || flashCard || activeCard) return
+    setActiveCard(card)
+  }
+
+  const handleMinigameSuccess = () => {
+    const card = activeCard
+    setActiveCard(null)
     setFlashCard(card)
   }
 
@@ -130,7 +146,9 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
   if (alreadyCleared) {
     return (
       <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f0c29, #1a1035)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', textAlign: 'center' }}>
-        <div style={{ fontSize: '64px', marginBottom: '16px' }}>{stage.purificationItem.emoji}</div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+          <MonsterImage src={stage.purificationItem.image} emoji={stage.purificationItem.emoji} size={64} />
+        </div>
         <h2 style={{ color: '#34d399', fontSize: '20px', fontWeight: 'bold', marginBottom: '8px' }}>이미 정화 완료!</h2>
         <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px', marginBottom: '24px' }}>
           {stage.monster.name}은 이미 빛을 되찾았어요 ✨
@@ -147,7 +165,14 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #0f0c29 0%, #1a1035 100%)', padding: `20px ${pad}px 80px` }}>
+    <div style={{
+      minHeight: '100vh',
+      backgroundImage: stage.backgroundImage
+        ? `linear-gradient(180deg, rgba(10,8,25,0.55) 0%, rgba(10,8,25,0.92) 100%), url(${stage.backgroundImage})`
+        : 'linear-gradient(180deg, #0f0c29 0%, #1a1035 100%)',
+      backgroundSize: 'cover', backgroundPosition: 'center',
+      padding: `20px ${pad}px 80px`,
+    }}>
       {/* 헤더 */}
       <div style={{ textAlign: 'center', marginBottom: '24px' }}>
         <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', letterSpacing: '2px', marginBottom: '4px' }}>BOSS BATTLE</div>
@@ -162,12 +187,12 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
         borderRadius: '20px', padding: '24px', textAlign: 'center', marginBottom: '24px',
       }}>
         <div style={{
-          fontSize: '72px', marginBottom: '12px',
+          display: 'flex', justifyContent: 'center', marginBottom: '12px',
           filter: `drop-shadow(0 0 20px ${stage.monster.color})`,
           opacity: 0.3 + (darkness / 100) * 0.7,
           animation: darkness > 0 ? 'shake 2s ease-in-out infinite' : 'none',
         }}>
-          {stage.monster.emoji}
+          <MonsterImage src={stage.monster.image} emoji={stage.monster.emoji} size={72} />
         </div>
         <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', marginBottom: '2px' }}>
           {stage.monster.nameEn}
@@ -178,7 +203,7 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
         <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', marginBottom: '20px' }}>
           {stage.theme} 몬스터
         </p>
-        <DarkGauge value={darkness} color={stage.monster.color || '#7c3aed'} />
+        <DarkGauge value={darkness} />
       </div>
 
       {/* 캐치프레이즈 */}
@@ -243,6 +268,13 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
         </div>
       </div>
 
+      {activeCard && (
+        <MinigameRouter
+          card={activeCard}
+          onSuccess={handleMinigameSuccess}
+          onCancel={() => setActiveCard(null)}
+        />
+      )}
       {flashCard && <CardFlash card={flashCard} onDone={handleFlashDone} />}
       {purified && <PurificationComplete stage={stage} onContinue={handlePurificationContinue} />}
 

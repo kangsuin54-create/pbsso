@@ -49,6 +49,7 @@ export const CATEGORIES = [
   { id: 'companion', label: '동반자', emoji: '🐱' },
   { id: 'background', label: '배경', emoji: '🌈' },
   { id: 'lumos', label: '루모스', emoji: '💎' },
+  { id: 'cards', label: '카드 도감', emoji: '📖' },
 ]
 
 export const INITIAL_EQUIPPED = {

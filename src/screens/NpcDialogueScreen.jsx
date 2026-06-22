@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { LUMOS_STAGES } from '../data/lumosStages'
 import useIsMobile from '../hooks/useIsMobile'
+import MonsterImage from '../components/MonsterImage'
+import { getWrongFeedback } from '../utils/wrongFeedback'
 
 function WrongFeedback({ message }) {
   return (
@@ -14,7 +16,8 @@ function WrongFeedback({ message }) {
   )
 }
 
-function QuizModal({ card, onSuccess, onClose }) {
+// 대화 선택지 모달 — 기존 퀴즈 로직을 NPC와의 대화 형식으로 재스킨
+function DialogueChoiceModal({ stage, card, onSuccess, onClose }) {
   const [selected, setSelected] = useState(null)
   const [submitted, setSubmitted] = useState(false)
   const [wrongCount, setWrongCount] = useState(0)
@@ -31,7 +34,7 @@ function QuizModal({ card, onSuccess, onClose }) {
     }
   }
 
-  const feedbackMsg = card.wrongFeedback?.[Math.min(wrongCount, 2)] || '다시 한번 생각해봐요~ 😊'
+  const feedbackMsg = getWrongFeedback(card, wrongCount)
 
   return (
     <div style={{
@@ -42,10 +45,10 @@ function QuizModal({ card, onSuccess, onClose }) {
         background: 'white', borderRadius: '20px', padding: '24px', maxWidth: '420px', width: '100%',
         boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
       }}>
-        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-          <div style={{ fontSize: '32px', marginBottom: '8px' }}>{card.emoji}</div>
-          <h3 style={{ margin: 0, fontSize: '15px', color: '#1f2937', fontWeight: 'bold' }}>
-            {card.name} — 퀴즈!
+        <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+          <MonsterImage src={stage.npcImage} emoji="🧑" size={56} />
+          <h3 style={{ margin: '8px 0 0', fontSize: '15px', color: '#1f2937', fontWeight: 'bold' }}>
+            {stage.npc}의 질문
           </h3>
         </div>
         <p style={{ fontSize: '14px', color: '#374151', lineHeight: '1.6', marginBottom: '16px', textAlign: 'center' }}>
@@ -64,7 +67,7 @@ function QuizModal({ card, onSuccess, onClose }) {
                 background: bg, color, fontSize: '13px', cursor: submitted ? 'default' : 'pointer',
                 textAlign: 'left', transition: 'all 0.2s',
               }}>
-                {choice}
+                "{choice}"
               </button>
             )
           })}
@@ -74,7 +77,7 @@ function QuizModal({ card, onSuccess, onClose }) {
           marginTop: '16px', width: '100%', padding: '10px', background: 'none',
           border: '1px solid #e5e7eb', borderRadius: '10px', color: '#9ca3af', cursor: 'pointer', fontSize: '13px',
         }}>
-          나중에 다시 볼게요
+          나중에 다시 대화할게요
         </button>
       </div>
     </div>
@@ -108,28 +111,28 @@ function RewardPopup({ card, onClose }) {
   )
 }
 
-export default function LearningScreen({ stageId, actions, onComplete }) {
+export default function NpcDialogueScreen({ stageId, actions, onComplete }) {
   const isMobile = useIsMobile()
   const stage = LUMOS_STAGES.find(s => s.id === stageId)
   const [currentIdx, setCurrentIdx] = useState(0)
-  const [flipped, setFlipped] = useState(false)
+  const [showChoices, setShowChoices] = useState(false)
   const [learnedIds, setLearnedIds] = useState([])
-  const [showQuiz, setShowQuiz] = useState(false)
   const [showReward, setShowReward] = useState(null)
   const [allDone, setAllDone] = useState(false)
+  const pad = isMobile ? 16 : 24
 
   if (!stage) return null
 
   const card = stage.skillCards[currentIdx]
   const totalCards = stage.skillCards.length
   const isLearned = (id) => learnedIds.includes(id)
-  const pad = isMobile ? 16 : 24
 
-  const handleQuizSuccess = () => {
-    setShowQuiz(false)
+  const handleDialogueSuccess = () => {
+    setShowChoices(false)
     actions.addExp(10)
     actions.addCoins(5)
     actions.updateProgress(stage.progressKey, 8)
+    actions.collectCard(card.id)
     const newLearned = [...learnedIds, card.id]
     setLearnedIds(newLearned)
     setShowReward(card)
@@ -141,10 +144,12 @@ export default function LearningScreen({ stageId, actions, onComplete }) {
   if (allDone) {
     return (
       <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f0c29, #1a1035)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', textAlign: 'center' }}>
-        <div style={{ fontSize: '80px', marginBottom: '24px', animation: 'bounce 1s infinite' }}>🌟</div>
-        <h2 style={{ color: '#fbbf24', fontSize: '22px', fontWeight: 'bold', marginBottom: '12px' }}>스킬카드 5장 완성!</h2>
+        <MonsterImage src={stage.npcImage} emoji="🧑" size={80} />
+        <h2 style={{ color: '#fbbf24', fontSize: '22px', fontWeight: 'bold', margin: '20px 0 12px' }}>
+          {stage.npc}: "준비됐어요!"
+        </h2>
         <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', marginBottom: '8px' }}>
-          {stage.monster.name}에 맞설 준비가 됐어요!
+          {stage.monster.name}에 맞설 스킬카드 5장을 모두 받았어요!
         </p>
         <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', marginBottom: '32px' }}>
           {stage.catchPhrase}
@@ -158,7 +163,7 @@ export default function LearningScreen({ stageId, actions, onComplete }) {
           fontSize: '16px', fontWeight: 'bold', color: '#1a1400', cursor: 'pointer',
           boxShadow: '0 0 30px rgba(251,191,36,0.4)',
         }}>
-          ⚔️ {stage.monster.name} 정화하러 가기!
+          🚪 {stage.classroom}으로 입장!
         </button>
         <style>{`@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }`}</style>
       </div>
@@ -173,8 +178,8 @@ export default function LearningScreen({ stageId, actions, onComplete }) {
           background: `${stage.monster.darkColor}80`, borderRadius: '12px',
           padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '6px',
         }}>
-          <span style={{ fontSize: '20px' }}>{stage.monster.emoji}</span>
-          <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px', fontWeight: 'bold' }}>{stage.classroom}</span>
+          <span style={{ fontSize: '16px' }}>🚪</span>
+          <span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px', fontWeight: 'bold' }}>{stage.classroom} 문 앞</span>
         </div>
         <div style={{ flex: 1 }} />
         <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px' }}>{learnedIds.length} / {totalCards}</span>
@@ -197,7 +202,7 @@ export default function LearningScreen({ stageId, actions, onComplete }) {
       {/* 카드 탭 */}
       <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', overflowX: 'auto' }}>
         {stage.skillCards.map((c, i) => (
-          <button key={c.id} onClick={() => { setCurrentIdx(i); setFlipped(false) }} style={{
+          <button key={c.id} onClick={() => setCurrentIdx(i)} style={{
             minWidth: '44px', height: '44px', borderRadius: '10px', border: 'none', cursor: 'pointer',
             background: isLearned(c.id) ? '#22c55e' : i === currentIdx ? stage.monster.darkColor : 'rgba(255,255,255,0.05)',
             fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -209,68 +214,59 @@ export default function LearningScreen({ stageId, actions, onComplete }) {
         ))}
       </div>
 
-      {/* 메인 카드 */}
-      <div
-        onClick={() => !isLearned(card.id) && setFlipped(f => !f)}
-        style={{
-          borderRadius: '20px', minHeight: '280px', padding: '24px',
-          cursor: isLearned(card.id) ? 'default' : 'pointer',
-          background: flipped
-            ? `linear-gradient(135deg, ${stage.monster.darkColor}, rgba(0,0,0,0.5))`
-            : 'rgba(255,255,255,0.05)',
-          border: `1px solid ${stage.monster.color}30`,
-          transition: 'all 0.3s ease', position: 'relative', overflow: 'hidden',
-        }}
-      >
+      {/* NPC 대화창 */}
+      <div style={{
+        borderRadius: '20px', minHeight: '300px', padding: '24px',
+        background: `linear-gradient(135deg, ${stage.monster.darkColor}60, rgba(0,0,0,0.4))`,
+        border: `1px solid ${stage.monster.color}30`,
+      }}>
         {isLearned(card.id) ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '240px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '250px' }}>
             <div style={{ fontSize: '48px' }}>✅</div>
-            <div style={{ color: '#34d399', fontWeight: 'bold', fontSize: '14px', marginTop: '8px' }}>완료!</div>
-          </div>
-        ) : !flipped ? (
-          <div>
-            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <div style={{ fontSize: '56px', marginBottom: '12px' }}>{card.emoji}</div>
-              <h3 style={{ color: stage.monster.color || '#fbbf24', fontSize: '18px', fontWeight: 'bold', margin: '0 0 8px' }}>{card.name}</h3>
-              <div style={{ display: 'inline-block', background: `${stage.monster.color}20`, borderRadius: '20px', padding: '3px 10px' }}>
-                <span style={{ color: stage.monster.color, fontSize: '11px', fontWeight: 'bold' }}>스킬 {currentIdx + 1}/{totalCards}</span>
-              </div>
-            </div>
-            <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', lineHeight: '1.7', textAlign: 'center' }}>{card.description}</p>
-            <div style={{ textAlign: 'center', marginTop: '20px', color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>탭하여 퀴즈 도전 →</div>
+            <div style={{ color: '#34d399', fontWeight: 'bold', fontSize: '14px', marginTop: '8px' }}>대화 완료!</div>
           </div>
         ) : (
-          <div style={{ textAlign: 'center', paddingTop: '24px' }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎯</div>
-            <h3 style={{ color: '#fbbf24', fontSize: '16px', marginBottom: '12px' }}>이해했나요?</h3>
-            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px', marginBottom: '24px' }}>{card.name}에 대한 짧은 퀴즈를 풀어봐요!</p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <MonsterImage src={stage.npcImage} emoji="🧑" size={88} style={{ marginBottom: '8px' }} />
+            <div style={{ color: stage.monster.color, fontWeight: 'bold', fontSize: '13px', marginBottom: '14px' }}>
+              {stage.npc}
+            </div>
+            {/* 말풍선 */}
+            <div style={{
+              position: 'relative', background: 'rgba(255,255,255,0.95)', borderRadius: '16px',
+              padding: '16px 18px', maxWidth: '320px', marginBottom: '16px',
+            }}>
+              <div style={{
+                position: 'absolute', top: '-8px', left: '50%', transform: 'translateX(-50%)',
+                width: 0, height: 0, borderLeft: '8px solid transparent', borderRight: '8px solid transparent',
+                borderBottom: '8px solid rgba(255,255,255,0.95)',
+              }} />
+              <p style={{ margin: 0, fontSize: '13px', color: '#374151', lineHeight: '1.6', textAlign: 'center' }}>
+                "{card.description}"
+              </p>
+            </div>
+            <div style={{ display: 'inline-block', background: `${stage.monster.color}20`, borderRadius: '20px', padding: '3px 12px', marginBottom: '16px' }}>
+              <span style={{ color: stage.monster.color, fontSize: '11px', fontWeight: 'bold' }}>
+                스킬 {currentIdx + 1}/{totalCards} · {card.name}
+              </span>
+            </div>
             <button
-              onClick={(e) => { e.stopPropagation(); setShowQuiz(true) }}
+              onClick={() => setShowChoices(true)}
               style={{
                 background: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
                 border: 'none', borderRadius: '30px', padding: '12px 32px',
                 fontSize: '14px', fontWeight: 'bold', color: '#1a1400', cursor: 'pointer',
               }}
             >
-              퀴즈 풀기 ✍️
+              💬 대화하기
             </button>
           </div>
         )}
       </div>
 
-      {/* 다음 카드 */}
-      {isLearned(card.id) && currentIdx < totalCards - 1 && (
-        <button onClick={() => { setCurrentIdx(i => i + 1); setFlipped(false) }} style={{
-          marginTop: '16px', width: '100%', padding: '14px',
-          background: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
-          border: 'none', borderRadius: '14px', color: 'white',
-          fontWeight: 'bold', fontSize: '14px', cursor: 'pointer',
-        }}>
-          다음 스킬카드 →
-        </button>
+      {showChoices && (
+        <DialogueChoiceModal stage={stage} card={card} onSuccess={handleDialogueSuccess} onClose={() => setShowChoices(false)} />
       )}
-
-      {showQuiz && <QuizModal card={card} onSuccess={handleQuizSuccess} onClose={() => { setShowQuiz(false); setFlipped(false) }} />}
       {showReward && <RewardPopup card={showReward} onClose={() => setShowReward(null)} />}
     </div>
   )
