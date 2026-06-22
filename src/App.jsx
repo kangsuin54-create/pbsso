@@ -225,8 +225,10 @@ export default function App() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #f0fdf4 0%, #eff6ff 100%)' }}>
-      {screens[screen] || screens.home}
+    <div style={{ minHeight: '100vh', background: '#0a0818' }}>
+      <div key={screen} className="screen-fade">
+        {screens[screen] || screens.home}
+      </div>
       {levelUpEvent && (
         <LevelUpPopup level={levelUpEvent} onClose={() => setLevelUpEvent(null)} />
       )}

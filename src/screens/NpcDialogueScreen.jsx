@@ -7,11 +7,11 @@ import { getWrongFeedback } from '../utils/wrongFeedback'
 function WrongFeedback({ message }) {
   return (
     <div style={{
-      background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: '12px',
+      background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '12px',
       padding: '12px 16px', marginTop: '12px', display: 'flex', gap: '8px', alignItems: 'flex-start',
     }}>
       <span style={{ fontSize: '18px' }}>🌟</span>
-      <p style={{ margin: 0, color: '#92400e', fontSize: '13px', lineHeight: '1.5' }}>{message}</p>
+      <p style={{ margin: 0, color: '#fbbf24', fontSize: '13px', lineHeight: '1.5' }}>{message}</p>
     </div>
   )
 }
@@ -42,24 +42,25 @@ function DialogueChoiceModal({ stage, card, onSuccess, onClose }) {
       display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px',
     }}>
       <div style={{
-        background: 'white', borderRadius: '20px', padding: '24px', maxWidth: '420px', width: '100%',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+        background: 'linear-gradient(160deg, #1a1035, #0f0c29)', border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: '20px', padding: '24px', maxWidth: '420px', width: '100%',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
       }}>
         <div style={{ textAlign: 'center', marginBottom: '16px' }}>
           <MonsterImage src={stage.npcImage} emoji="🧑" size={56} />
-          <h3 style={{ margin: '8px 0 0', fontSize: '15px', color: '#1f2937', fontWeight: 'bold' }}>
+          <h3 style={{ margin: '8px 0 0', fontSize: '15px', color: '#fbbf24', fontWeight: 'bold' }}>
             {stage.npc}의 질문
           </h3>
         </div>
-        <p style={{ fontSize: '14px', color: '#374151', lineHeight: '1.6', marginBottom: '16px', textAlign: 'center' }}>
+        <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.85)', lineHeight: '1.6', marginBottom: '16px', textAlign: 'center' }}>
           {card.quiz.question}
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {card.quiz.choices.map((choice, i) => {
-            let bg = 'white', borderColor = '#e5e7eb', color = '#374151'
+            let bg = 'rgba(255,255,255,0.06)', borderColor = 'rgba(255,255,255,0.15)', color = 'white'
             if (submitted) {
-              if (i === card.quiz.correct) { bg = '#d1fae5'; borderColor = '#34d399'; color = '#065f46' }
-              else if (i === selected) { bg = '#fef3c7'; borderColor = '#fbbf24'; color = '#92400e' }
+              if (i === card.quiz.correct) { bg = 'rgba(52,211,153,0.2)'; borderColor = '#34d399'; color = '#34d399' }
+              else if (i === selected) { bg = 'rgba(251,191,36,0.2)'; borderColor = '#fbbf24'; color = '#fbbf24' }
             }
             return (
               <button key={i} onClick={() => handleSelect(i)} style={{
@@ -75,7 +76,7 @@ function DialogueChoiceModal({ stage, card, onSuccess, onClose }) {
         {submitted && selected !== card.quiz.correct && <WrongFeedback message={feedbackMsg} />}
         <button onClick={onClose} style={{
           marginTop: '16px', width: '100%', padding: '10px', background: 'none',
-          border: '1px solid #e5e7eb', borderRadius: '10px', color: '#9ca3af', cursor: 'pointer', fontSize: '13px',
+          border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '13px',
         }}>
           나중에 다시 대화할게요
         </button>

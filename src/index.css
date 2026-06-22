@@ -8,13 +8,26 @@
 
 body {
   font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
-  background: #f0fdf4;
+  background: #0a0818;
   min-height: 100vh;
 }
 
 #root {
   width: 100%;
   min-height: 100vh;
+}
+
+/* 게임 타이틀/버튼용 폰트 — 일반 본문은 가독성을 위해 Noto Sans KR 유지 */
+h1, h2, h3, button {
+  font-family: 'Jua', 'Noto Sans KR', sans-serif;
+}
+
+.screen-fade {
+  animation: screen-fade-in 0.35s ease;
+}
+@keyframes screen-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes bounce-in {
