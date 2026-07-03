@@ -46,10 +46,21 @@ export default function MinigameRouter({ card, onSuccess, onCancel }) {
       }}>
         <div style={{ textAlign: 'center', marginBottom: '12px' }}>
           <div style={{ fontSize: '32px', marginBottom: '6px' }}>{card.emoji}</div>
-          <h3 style={{ margin: 0, fontSize: '15px', color: '#fbbf24', fontWeight: 'bold' }}>{card.name}</h3>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', marginTop: '6px', lineHeight: '1.5' }}>
-            {card.description}
-          </p>
+          <h3 style={{ margin: '0 0 4px', fontSize: '15px', color: '#fbbf24', fontWeight: 'bold' }}>{card.name}</h3>
+          {card.missionInstruction ? (
+            <div style={{
+              background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)',
+              borderRadius: '10px', padding: '8px 12px', margin: '8px 0',
+            }}>
+              <p style={{ margin: 0, color: '#fbbf24', fontSize: '13px', fontWeight: 'bold' }}>
+                🎯 {card.missionInstruction}
+              </p>
+            </div>
+          ) : (
+            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', marginTop: '6px', lineHeight: '1.5' }}>
+              {card.description}
+            </p>
+          )}
         </div>
 
         <Engine key={gameKey} config={card.gameConfig || {}} card={card} onSuccess={onSuccess} onFail={handleFail} />
