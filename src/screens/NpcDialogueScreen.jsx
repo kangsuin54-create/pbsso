@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { LUMOS_STAGES } from '../data/lumosStages'
 import useIsMobile from '../hooks/useIsMobile'
 import MonsterImage from '../components/MonsterImage'
-import MinigameRouter from '../components/minigames/MinigameRouter'
 
 function RewardPopup({ card, onClose }) {
   useEffect(() => {
@@ -31,11 +30,120 @@ function RewardPopup({ card, onClose }) {
   )
 }
 
+function QuizModal({ card, stage, onSuccess, onClose }) {
+  const [selected, setSelected] = useState(null)
+  const [submitted, setSubmitted] = useState(false)
+  const [wrongMsg, setWrongMsg] = useState(null)
+
+  const handleSelect = (idx) => {
+    if (submitted) return
+    setSelected(idx)
+    setSubmitted(true)
+    if (idx === card.quiz.correct) {
+      setTimeout(onSuccess, 900)
+    } else {
+      const feedback = card.wrongFeedback?.[Math.floor(Math.random() * (card.wrongFeedback?.length || 1))] || '다시 생각해봐요!'
+      setWrongMsg(feedback)
+      setTimeout(() => {
+        setSelected(null)
+        setSubmitted(false)
+        setWrongMsg(null)
+      }, 1800)
+    }
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 120, padding: '24px',
+    }}>
+      <div style={{
+        background: 'linear-gradient(135deg, #1e1b4b, #0f0c29)',
+        border: `2px solid ${stage.monster.color}50`,
+        borderRadius: '24px', padding: '28px 24px', maxWidth: '380px', width: '100%',
+        boxShadow: `0 0 40px ${stage.monster.color}30`,
+      }}>
+        {/* 카드 정보 */}
+        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+          <div style={{ fontSize: '40px', marginBottom: '8px' }}>{card.emoji}</div>
+          <div style={{ color: stage.monster.color, fontWeight: 'bold', fontSize: '14px', marginBottom: '4px' }}>{card.name}</div>
+          {card.skillPhrase && (
+            <div style={{
+              background: `${stage.monster.color}15`, borderRadius: '10px',
+              padding: '6px 14px', display: 'inline-block',
+              color: 'rgba(255,255,255,0.7)', fontSize: '12px', fontStyle: 'italic',
+            }}>
+              "{card.skillPhrase}"
+            </div>
+          )}
+        </div>
+
+        {/* 질문 */}
+        <div style={{
+          background: 'rgba(255,255,255,0.06)', borderRadius: '14px',
+          padding: '14px 16px', marginBottom: '16px',
+          color: 'white', fontSize: '14px', fontWeight: 'bold', lineHeight: '1.5', textAlign: 'center',
+        }}>
+          {card.quiz.question}
+        </div>
+
+        {/* 오답 피드백 */}
+        {wrongMsg && (
+          <div style={{
+            background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
+            borderRadius: '10px', padding: '10px 14px', marginBottom: '12px',
+            color: '#fca5a5', fontSize: '13px', textAlign: 'center',
+          }}>
+            {wrongMsg}
+          </div>
+        )}
+
+        {/* 선택지 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+          {card.quiz.choices.map((choice, idx) => {
+            const isSelected = selected === idx
+            const isCorrect = idx === card.quiz.correct
+            let bg = 'rgba(255,255,255,0.06)'
+            let border = '1px solid rgba(255,255,255,0.12)'
+            let color = 'rgba(255,255,255,0.85)'
+            if (submitted && isSelected) {
+              if (isCorrect) {
+                bg = 'rgba(34,197,94,0.2)'; border = '1px solid #22c55e'; color = '#86efac'
+              } else {
+                bg = 'rgba(239,68,68,0.2)'; border = '1px solid #ef4444'; color = '#fca5a5'
+              }
+            }
+            return (
+              <button key={idx} onClick={() => handleSelect(idx)} style={{
+                background: bg, border, borderRadius: '12px',
+                padding: '12px 16px', textAlign: 'left',
+                color, fontSize: '13px', cursor: submitted ? 'default' : 'pointer',
+                transition: 'all 0.2s',
+              }}>
+                {['①', '②', '③', '④'][idx]} {choice}
+              </button>
+            )
+          })}
+        </div>
+
+        <button onClick={onClose} style={{
+          width: '100%', background: 'none',
+          border: '1px solid rgba(255,255,255,0.15)', borderRadius: '10px',
+          padding: '8px', color: 'rgba(255,255,255,0.35)', fontSize: '12px', cursor: 'pointer',
+        }}>
+          나중에
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function NpcDialogueScreen({ stageId, actions, onComplete }) {
   const isMobile = useIsMobile()
   const stage = LUMOS_STAGES.find(s => s.id === stageId)
   const [currentIdx, setCurrentIdx] = useState(0)
-  const [showMinigame, setShowMinigame] = useState(false)
+  const [showChoices, setShowChoices] = useState(false)
   const [learnedIds, setLearnedIds] = useState([])
   const [showReward, setShowReward] = useState(null)
   const [allDone, setAllDone] = useState(false)
@@ -47,8 +155,8 @@ export default function NpcDialogueScreen({ stageId, actions, onComplete }) {
   const totalCards = stage.skillCards.length
   const isLearned = (id) => learnedIds.includes(id)
 
-  const handleMinigameSuccess = () => {
-    setShowMinigame(false)
+  const handleDialogueSuccess = () => {
+    setShowChoices(false)
     actions.addExp(10)
     actions.addCoins(5)
     actions.updateProgress(stage.progressKey, 8)
@@ -177,7 +285,7 @@ export default function NpcDialogueScreen({ stageId, actions, onComplete }) {
                   borderLeft: '3px solid #fbbf24',
                 }}>
                   <p style={{ margin: 0, fontSize: '13px', color: '#92400e', fontWeight: 'bold', textAlign: 'center' }}>
-                    🎮 {card.missionInstruction}
+                    💬 {card.missionInstruction}
                   </p>
                 </div>
               )}
@@ -188,21 +296,26 @@ export default function NpcDialogueScreen({ stageId, actions, onComplete }) {
               </span>
             </div>
             <button
-              onClick={() => setShowMinigame(true)}
+              onClick={() => setShowChoices(true)}
               style={{
                 background: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
                 border: 'none', borderRadius: '30px', padding: '12px 32px',
                 fontSize: '14px', fontWeight: 'bold', color: '#1a1400', cursor: 'pointer',
               }}
             >
-              🎮 미션 도전하기
+              💬 대화하기
             </button>
           </div>
         )}
       </div>
 
-      {showMinigame && (
-        <MinigameRouter card={card} onSuccess={handleMinigameSuccess} onCancel={() => setShowMinigame(false)} />
+      {showChoices && (
+        <QuizModal
+          card={card}
+          stage={stage}
+          onSuccess={handleDialogueSuccess}
+          onClose={() => setShowChoices(false)}
+        />
       )}
       {showReward && <RewardPopup card={showReward} onClose={() => setShowReward(null)} />}
     </div>

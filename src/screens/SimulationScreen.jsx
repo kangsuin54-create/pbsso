@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { LUMOS_STAGES } from '../data/lumosStages'
 import useIsMobile from '../hooks/useIsMobile'
 import MonsterImage from '../components/MonsterImage'
+import MinigameRouter from '../components/minigames/MinigameRouter'
 
 // 몬스터 어둠 게이지 — RPG HP바 스타일 (어두울수록 붉게, 정화될수록 황금색으로)
 function DarkGauge({ value }) {
@@ -99,6 +100,7 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
   const [darkness, setDarkness] = useState(100)
   const [usedCardIds, setUsedCardIds] = useState([])
   const [flashCard, setFlashCard] = useState(null)
+  const [activeCard, setActiveCard] = useState(null)
   const [purified, setPurified] = useState(false)
   const pad = isMobile ? 16 : 24
 
@@ -107,7 +109,13 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
   const alreadyCleared = playerData?.clearedStages?.includes(stageId)
 
   const handleUseCard = (card) => {
-    if (usedCardIds.includes(card.id) || flashCard) return
+    if (usedCardIds.includes(card.id) || flashCard || activeCard) return
+    setActiveCard(card)
+  }
+
+  const handleMinigameSuccess = () => {
+    const card = activeCard
+    setActiveCard(null)
     setFlashCard(card)
   }
 
@@ -245,7 +253,7 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
                     {card.name}
                   </div>
                   <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>
-                    {used ? '사용 완료 — 어둠 -20%' : '⚔️ 탭하여 사용'}
+                    {used ? '사용 완료 — 어둠 -20%' : '⚔️ 사용'}
                   </div>
                 </div>
                 {!used && (
@@ -257,6 +265,13 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
         </div>
       </div>
 
+      {activeCard && (
+        <MinigameRouter
+          card={activeCard}
+          onSuccess={handleMinigameSuccess}
+          onCancel={() => setActiveCard(null)}
+        />
+      )}
       {flashCard && <CardFlash card={flashCard} onDone={handleFlashDone} />}
       {purified && <PurificationComplete stage={stage} onContinue={handlePurificationContinue} />}
 
