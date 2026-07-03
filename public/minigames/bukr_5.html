@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>함께의 힘</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Segoe UI', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 24px;
+    user-select: none;
+  }
+  h1 { font-size: 1.4rem; text-align: center; }
+  .subtitle { font-size: 0.85rem; color: #aaa; text-align: center; }
+  .scene {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 20px;
+    min-height: 100px;
+  }
+  .npc-wrap { text-align: center; }
+  .npc-emoji { font-size: 3.5rem; display: block; transition: transform 0.3s; }
+  .box-emoji { font-size: 2.5rem; display: block; transition: transform 0.4s; margin-top: 4px; }
+  .npc-label { font-size: 0.75rem; color: #aaa; margin-top: 4px; }
+  .npc-wrap.helping .npc-emoji { transform: translateY(-10px); }
+  .npc-wrap.helping .box-emoji { transform: translateY(-16px) scale(0.85); }
+  .bar-wrap {
+    width: 260px;
+    height: 22px;
+    background: #12183a;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 2px solid #2a3060;
+  }
+  .bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #f4c95d, #e67e22);
+    border-radius: 12px;
+    width: 0%;
+    transition: width 0.05s linear;
+  }
+  .bar-label { font-size: 0.85rem; color: #aaa; }
+  .btn-hold {
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f4c95d, #e67e22);
+    border: none;
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: #0a0e27;
+    cursor: pointer;
+    touch-action: auto;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    gap: 6px;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 6px 20px rgba(244,201,93,0.4);
+    transition: transform 0.1s;
+  }
+  .btn-hold:active { transform: scale(0.93); }
+  .btn-hold-icon { font-size: 2rem; }
+  .hint { font-size: 0.78rem; color: #888; text-align: center; }
+  .success-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(10,14,39,0.93);
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    gap: 16px;
+  }
+  .success-overlay.show { display: flex; }
+  .success-msg { font-size: 1.4rem; color: #f4c95d; text-align: center; }
+  .btn-retry {
+    padding: 12px 28px;
+    background: #f4c95d;
+    color: #0a0e27;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: auto;
+  }
+</style>
+</head>
+<body>
+<h1>🤝 함께의 힘</h1>
+<p class="subtitle">버튼을 꾹 누르고 있으면 같이 들어요!</p>
+<div class="scene">
+  <div class="npc-wrap" id="npcWrap">
+    <span class="npc-emoji" id="npcEmoji">😪</span>
+    <span class="box-emoji" id="boxEmoji">📦</span>
+    <span class="npc-label">친구</span>
+  </div>
+  <div class="npc-wrap" id="myWrap">
+    <span class="npc-emoji" id="myEmoji">🧙</span>
+    <span class="box-emoji" style="opacity:0;">📦</span>
+    <span class="npc-label">나</span>
+  </div>
+</div>
+<div class="bar-wrap">
+  <div class="bar-fill" id="barFill"></div>
+</div>
+<div class="bar-label" id="barLabel">0%</div>
+<button class="btn-hold" id="holdBtn">
+  <span class="btn-hold-icon">💪</span>
+  <span>꾹 눌러요!</span>
+</button>
+<p class="hint">버튼을 떼면 게이지가 줄어요</p>
+<div class="success-overlay" id="successOverlay">
+  <div style="font-size:2.5rem;">🤝</div>
+  <div class="success-msg">함께하면 가벼워져요! 🤝<br>최고의 팀이에요!</div>
+  <button class="btn-retry" onclick="resetGame()">다시 도전! 💪</button>
+</div>
+<script>
+  let gauge = 0, holding = false, raf, completed = false;
+
+  function tick() {
+    if (completed) return;
+    if (holding) {
+      gauge = Math.min(100, gauge + 1.8);
+    } else {
+      gauge = Math.max(0, gauge - 0.9);
+    }
+    const pct = gauge.toFixed(0);
+    document.getElementById('barFill').style.width = pct + '%';
+    document.getElementById('barLabel').textContent = pct + '%';
+
+    if (holding) {
+      document.getElementById('npcWrap').classList.add('helping');
+      document.getElementById('myWrap').classList.add('helping');
+      document.getElementById('npcEmoji').textContent = '😤';
+      document.getElementById('myEmoji').textContent = '💪';
+    } else {
+      document.getElementById('npcWrap').classList.remove('helping');
+      document.getElementById('myWrap').classList.remove('helping');
+      document.getElementById('npcEmoji').textContent = gauge < 30 ? '😪' : '😊';
+      document.getElementById('myEmoji').textContent = '🧙';
+    }
+
+    if (gauge >= 100) {
+      completed = true;
+      document.getElementById('boxEmoji').style.transform = 'translateY(-40px) scale(0.5)';
+      document.getElementById('boxEmoji').style.transition = 'transform 0.5s';
+      document.getElementById('npcEmoji').textContent = '😄';
+      document.getElementById('myEmoji').textContent = '🎉';
+      cancelAnimationFrame(raf);
+      setTimeout(() => {
+        document.getElementById('successOverlay').classList.add('show');
+        window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+      }, 700);
+      return;
+    }
+    raf = requestAnimationFrame(tick);
+  }
+
+  function startHold() { if (!completed) { holding = true; if (!raf) raf = requestAnimationFrame(tick); } }
+  function endHold()   { holding = false; }
+
+  function resetGame() {
+    gauge = 0; holding = false; completed = false;
+    cancelAnimationFrame(raf); raf = null;
+    document.getElementById('barFill').style.width = '0%';
+    document.getElementById('barLabel').textContent = '0%';
+    document.getElementById('npcEmoji').textContent = '😪';
+    document.getElementById('myEmoji').textContent = '🧙';
+    document.getElementById('boxEmoji').style.transform = '';
+    document.getElementById('npcWrap').classList.remove('helping');
+    document.getElementById('myWrap').classList.remove('helping');
+    document.getElementById('successOverlay').classList.remove('show');
+    raf = requestAnimationFrame(tick);
+  }
+
+  const btn = document.getElementById('holdBtn');
+  btn.addEventListener('mousedown',  startHold);
+  btn.addEventListener('mouseup',    endHold);
+  btn.addEventListener('mouseleave', endHold);
+  btn.addEventListener('touchstart', e => { e.preventDefault(); startHold(); }, {passive:false});
+  btn.addEventListener('touchend',   e => { e.preventDefault(); endHold(); },   {passive:false});
+  btn.addEventListener('touchcancel',endHold);
+
+  raf = requestAnimationFrame(tick);
+</script>
+</body>
+</html>

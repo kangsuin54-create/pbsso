@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>호기심의 안경</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Segoe UI', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 24px;
+  }
+  h1 { font-size: 1.4rem; text-align: center; }
+  .subtitle { font-size: 0.85rem; color: #aaa; text-align: center; }
+  .npc-card {
+    background: #12183a;
+    border: 2px solid #f4c95d;
+    border-radius: 20px;
+    padding: 24px 32px;
+    text-align: center;
+    max-width: 300px;
+    width: 100%;
+  }
+  .npc-scene { font-size: 3.5rem; margin-bottom: 8px; }
+  .npc-desc { font-size: 0.88rem; color: #ccc; line-height: 1.5; }
+  .question { font-size: 1rem; color: #f4c95d; font-weight: bold; text-align: center; }
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 300px;
+  }
+  .choice-btn {
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 2px solid #2a3060;
+    background: #12183a;
+    color: #ddd;
+    font-size: 0.95rem;
+    cursor: pointer;
+    text-align: left;
+    touch-action: auto;
+    transition: border-color 0.15s, background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .choice-btn:active { border-color: #f4c95d; }
+  .choice-btn.correct { border-color: #2ecc71; background: rgba(46,204,113,0.15); color: #2ecc71; }
+  .choice-btn.wrong { border-color: #e74c3c; background: rgba(231,76,60,0.15); color: #e74c3c; }
+  .feedback { font-size: 1rem; text-align: center; min-height: 1.4em; }
+  .success-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(10,14,39,0.93);
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    gap: 16px;
+  }
+  .success-overlay.show { display: flex; }
+  .success-msg { font-size: 1.5rem; color: #f4c95d; text-align: center; }
+  .btn-retry {
+    padding: 12px 28px;
+    background: #f4c95d;
+    color: #0a0e27;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: auto;
+  }
+</style>
+</head>
+<body>
+<h1>🔭 호기심의 안경</h1>
+<p class="subtitle">친구를 잘 관찰해보세요!</p>
+<div class="npc-card">
+  <div class="npc-scene">😊🎩👜</div>
+  <p class="npc-desc">빨간 모자를 쓰고<br>파란 가방을 들고 있어요!</p>
+</div>
+<p class="question">이 친구가 들고 있는 건?</p>
+<div class="choices">
+  <button class="choice-btn" id="c0" onclick="choose(0)">🔵 파란 가방</button>
+  <button class="choice-btn" id="c1" onclick="choose(1)">🔴 빨간 가방</button>
+  <button class="choice-btn" id="c2" onclick="choose(2)">🟢 초록 가방</button>
+</div>
+<div class="feedback" id="feedback"></div>
+<div class="success-overlay" id="successOverlay">
+  <div style="font-size:3rem;">🔭</div>
+  <div class="success-msg">관찰력 UP! 🔭<br>정확하게 봤어요!</div>
+  <button class="btn-retry" onclick="resetGame()">다시 도전! 💪</button>
+</div>
+<script>
+  const ANSWER = 0;
+  let locked = false;
+
+  function choose(idx) {
+    if (locked) return;
+    locked = true;
+    const btns = document.querySelectorAll('.choice-btn');
+    if (idx === ANSWER) {
+      btns[idx].classList.add('correct');
+      document.getElementById('feedback').textContent = '정답! 잘 관찰했어요! 🎉';
+      document.getElementById('feedback').style.color = '#2ecc71';
+      setTimeout(() => {
+        document.getElementById('successOverlay').classList.add('show');
+        window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+      }, 800);
+    } else {
+      btns[idx].classList.add('wrong');
+      btns[ANSWER].classList.add('correct');
+      document.getElementById('feedback').textContent = '아쉬워요! 파란 가방이에요. 다시 해봐요!';
+      document.getElementById('feedback').style.color = '#e74c3c';
+      setTimeout(() => resetGame(), 2200);
+    }
+  }
+
+  function resetGame() {
+    locked = false;
+    document.querySelectorAll('.choice-btn').forEach(b => { b.className = 'choice-btn'; });
+    document.getElementById('feedback').textContent = '';
+    document.getElementById('successOverlay').classList.remove('show');
+  }
+
+  document.querySelectorAll('.choice-btn').forEach((btn, i) => {
+    btn.addEventListener('touchend', e => { e.preventDefault(); choose(i); });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>예스(Yes) 렌즈</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Arial', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  #header { padding: 12px; text-align: center; }
+  h1 { font-size: 18px; color: #f4c95d; }
+  p { font-size: 12px; color: #aaa; margin-top: 4px; }
+  #game-area {
+    position: relative;
+    width: 100vw;
+    flex: 1;
+  }
+  .obstacle {
+    position: absolute;
+    width: 60px; height: 60px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px;
+    user-select: none;
+    transition: transform 0.3s;
+  }
+  .obstacle.converted { animation: sparkle 0.5s ease; }
+  @keyframes sparkle {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.4); }
+    100% { transform: scale(1); }
+  }
+  #lens {
+    position: absolute;
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    border: 3px solid #f4c95d;
+    box-shadow: 0 0 20px rgba(244,201,93,0.5), inset 0 0 20px rgba(244,201,93,0.1);
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    display: none;
+  }
+  #progress {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    font-size: 18px; color: #f4c95d;
+    background: rgba(0,0,0,0.5); padding: 8px 20px; border-radius: 20px;
+  }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10,14,39,0.9);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 26px; color: #f4c95d; margin-bottom: 16px; text-align: center; }
+  #overlay p { font-size: 14px; color: #ccc; margin-bottom: 24px; }
+  .btn {
+    background: #f4c95d; color: #0a0e27;
+    border: none; border-radius: 24px;
+    padding: 12px 32px; font-size: 16px; font-weight: bold;
+    cursor: pointer;
+  }
+  #hint {
+    position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+    font-size: 13px; color: #aaa;
+    background: rgba(0,0,0,0.4); padding: 6px 16px; border-radius: 12px;
+  }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>🔍 예스(Yes) 렌즈</h1>
+  <p>골드 렌즈를 드래그해서 장애물 위에 올려보세요!</p>
+</div>
+<div id="game-area" id="gameArea">
+  <div id="lens"></div>
+</div>
+<div id="hint">💡 렌즈를 움직여서 ⚠️ 위에 올리세요</div>
+<div id="progress">변환: <span id="convCount">0</span> / 4</div>
+
+<div id="overlay">
+  <h2 id="overlayTitle"></h2>
+  <p id="overlayMsg"></p>
+  <button class="btn" id="overlayBtn">다시 도전! 💪</button>
+</div>
+
+<script>
+const gameArea = document.getElementById('game-area');
+const lens = document.getElementById('lens');
+const overlay = document.getElementById('overlay');
+const overlayTitle = document.getElementById('overlayTitle');
+const overlayMsg = document.getElementById('overlayMsg');
+const overlayBtn = document.getElementById('overlayBtn');
+const convCountEl = document.getElementById('convCount');
+
+let obstacles = [];
+let converted = 0;
+let active = false;
+let lensX = -200, lensY = -200;
+
+const LENS_R = 40;
+
+function createObstacles() {
+  const area = gameArea;
+  const W = window.innerWidth;
+  const H = window.innerHeight * 0.75;
+  const positions = [
+    { x: W * 0.25, y: H * 0.25 },
+    { x: W * 0.72, y: H * 0.22 },
+    { x: W * 0.2, y: H * 0.65 },
+    { x: W * 0.7, y: H * 0.62 },
+  ];
+  gameArea.querySelectorAll('.obstacle').forEach(el => el.remove());
+  obstacles = [];
+  converted = 0;
+  convCountEl.textContent = '0';
+
+  positions.forEach((pos, i) => {
+    const el = document.createElement('div');
+    el.className = 'obstacle';
+    el.textContent = '⚠️';
+    el.style.left = pos.x + 'px';
+    el.style.top = pos.y + 'px';
+    el.dataset.converted = 'false';
+    el.dataset.index = i;
+    gameArea.appendChild(el);
+    obstacles.push({ el, x: pos.x + 30, y: pos.y + 30, converted: false });
+  });
+}
+
+function getPos(e) {
+  const t = e.touches ? e.touches[0] : e;
+  return { x: t.clientX, y: t.clientY };
+}
+
+function onMove(e) {
+  e.preventDefault();
+  if (!active) return;
+  const p = getPos(e);
+  lensX = p.x; lensY = p.y;
+  lens.style.left = lensX + 'px';
+  lens.style.top = lensY + 'px';
+  checkConversions();
+}
+
+function onStart(e) {
+  e.preventDefault();
+  active = true;
+  lens.style.display = 'block';
+  onMove(e);
+}
+
+function onEnd(e) {
+  e.preventDefault();
+  active = false;
+  lens.style.display = 'none';
+}
+
+gameArea.addEventListener('touchstart', onStart, { passive: false });
+gameArea.addEventListener('touchmove', onMove, { passive: false });
+gameArea.addEventListener('touchend', onEnd, { passive: false });
+gameArea.addEventListener('mousedown', onStart);
+gameArea.addEventListener('mousemove', onMove);
+gameArea.addEventListener('mouseup', onEnd);
+
+function checkConversions() {
+  let newConv = false;
+  obstacles.forEach(obs => {
+    if (obs.converted) return;
+    const dx = lensX - obs.x, dy = lensY - obs.y;
+    if (Math.sqrt(dx*dx + dy*dy) < LENS_R + 20) {
+      obs.converted = true;
+      obs.el.textContent = '🎁';
+      obs.el.classList.add('converted');
+      converted++;
+      convCountEl.textContent = converted;
+      newConv = true;
+
+      // 반짝임 파티클
+      for (let i = 0; i < 6; i++) {
+        const star = document.createElement('div');
+        star.textContent = '✨';
+        star.style.cssText = `position:absolute;font-size:18px;left:${obs.el.style.left};top:${obs.el.style.top};pointer-events:none;animation:fadeOut 0.8s ease forwards;transform:translate(${(Math.random()-0.5)*60}px,${(Math.random()-0.5)*60}px)`;
+        gameArea.appendChild(star);
+        setTimeout(() => star.remove(), 800);
+      }
+    }
+  });
+
+  if (newConv && converted >= 4) {
+    setTimeout(() => {
+      overlayTitle.textContent = '오히려 좋아! 🌟';
+      overlayMsg.textContent = '모든 장애물을 선물로 바꿨어요!';
+      overlayBtn.style.display = 'none';
+      overlay.classList.add('show');
+      window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+    }, 600);
+  }
+}
+
+function reset() {
+  overlay.classList.remove('show');
+  overlayBtn.style.display = 'block';
+  createObstacles();
+}
+
+overlayBtn.addEventListener('click', reset);
+
+// Add fadeOut keyframe
+const style = document.createElement('style');
+style.textContent = '@keyframes fadeOut { from { opacity:1; } to { opacity:0; transform: translateY(-30px); } }';
+document.head.appendChild(style);
+
+createObstacles();
+</script>
+</body>
+</html>

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>따뜻한 손길</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Arial', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex; flex-direction: column; align-items: center;
+    user-select: none;
+  }
+  #header { padding: 12px; text-align: center; }
+  h1 { font-size: 18px; color: #f4c95d; }
+  p { font-size: 12px; color: #aaa; margin-top: 4px; }
+  #game-area {
+    position: relative;
+    width: 100vw;
+    flex: 1;
+  }
+  #npc {
+    position: absolute;
+    left: 40px; top: 50%;
+    transform: translateY(-50%);
+    text-align: center;
+  }
+  #npc-emoji {
+    font-size: 70px;
+    display: block;
+    transition: all 0.5s;
+  }
+  #npc-label {
+    font-size: 12px; color: #aaa; margin-top: 4px;
+  }
+  #npc-glow {
+    position: absolute;
+    top: 50%; left: 60px;
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    border: 2px dashed rgba(244,201,93,0.3);
+    transform: translateY(-50%);
+    pointer-events: none;
+  }
+  .item {
+    position: absolute;
+    font-size: 44px;
+    cursor: grab;
+    transition: filter 0.2s;
+    user-select: none;
+  }
+  .item.dragging { cursor: grabbing; z-index: 50; }
+  .item.delivered { opacity: 0; pointer-events: none; transition: opacity 0.4s; }
+  #status {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    font-size: 15px; color: #f4c95d;
+    background: rgba(0,0,0,0.5); padding: 8px 20px; border-radius: 20px;
+  }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10,14,39,0.92);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 26px; color: #f4c95d; margin-bottom: 16px; }
+  #overlay p { font-size: 14px; color: #ccc; margin-bottom: 24px; }
+  .btn {
+    background: #f4c95d; color: #0a0e27;
+    border: none; border-radius: 24px;
+    padding: 12px 32px; font-size: 16px; font-weight: bold;
+    cursor: pointer;
+  }
+  .particle {
+    position: absolute;
+    pointer-events: none;
+    font-size: 20px;
+    animation: floatUp 1s ease forwards;
+  }
+  @keyframes floatUp {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-60px); }
+  }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>🤗 따뜻한 손길</h1>
+  <p>아이템을 드래그해서 NPC에게 전달하세요!</p>
+</div>
+<div id="game-area">
+  <div id="npc">
+    <span id="npc-emoji">😔</span>
+    <div id="npc-label">NPC</div>
+  </div>
+  <div id="npc-glow"></div>
+</div>
+<div id="status">전달: <span id="deliveredCount">0</span> / 1 이상</div>
+
+<div id="overlay">
+  <h2 id="overlayTitle"></h2>
+  <p id="overlayMsg"></p>
+  <button class="btn" id="overlayBtn">다시 도전! 💪</button>
+</div>
+
+<script>
+const gameArea = document.getElementById('game-area');
+const npcEmoji = document.getElementById('npc-emoji');
+const deliveredCountEl = document.getElementById('deliveredCount');
+const overlay = document.getElementById('overlay');
+
+const ITEMS = ['☕', '⭐', '💌'];
+const ITEM_LABELS = ['따뜻한 차', '응원 별', '편지'];
+
+let items = [];
+let dragging = null;
+let dragOffX = 0, dragOffY = 0;
+let delivered = 0;
+let gameOver = false;
+
+const NPC_X = 80;
+const NPC_DROP_R = 60;
+
+function getNPCY() {
+  return gameArea.clientHeight / 2;
+}
+
+function createItems() {
+  items.forEach(i => i.el.remove());
+  items = [];
+  delivered = 0;
+  deliveredCountEl.textContent = 0;
+  gameOver = false;
+  npcEmoji.textContent = '😔';
+  npcEmoji.style.filter = '';
+
+  const W = window.innerWidth;
+  const H = gameArea.clientHeight;
+
+  ITEMS.forEach((emoji, i) => {
+    const el = document.createElement('div');
+    el.className = 'item';
+    el.textContent = emoji;
+    const x = W * 0.6 + (i % 2) * 80;
+    const y = H * 0.25 + i * 110;
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.dataset.index = i;
+    gameArea.appendChild(el);
+    items.push({ el, startX: x, startY: y, delivered: false });
+  });
+}
+
+function getPos(e) {
+  const t = e.touches ? e.touches[0] : e;
+  const rect = gameArea.getBoundingClientRect();
+  return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+}
+
+function onStart(e) {
+  e.preventDefault();
+  if (gameOver) return;
+  const p = getPos(e);
+  items.forEach((item, i) => {
+    if (item.delivered) return;
+    const rect = item.el.getBoundingClientRect();
+    const areaRect = gameArea.getBoundingClientRect();
+    const ix = rect.left - areaRect.left + rect.width/2;
+    const iy = rect.top - areaRect.top + rect.height/2;
+    const dx = p.x - ix, dy = p.y - iy;
+    if (Math.sqrt(dx*dx+dy*dy) < 35) {
+      dragging = item;
+      dragOffX = p.x - ix;
+      dragOffY = p.y - iy;
+      item.el.classList.add('dragging');
+    }
+  });
+}
+
+function onMove(e) {
+  e.preventDefault();
+  if (!dragging) return;
+  const p = getPos(e);
+  dragging.el.style.left = (p.x - dragOffX - 22) + 'px';
+  dragging.el.style.top = (p.y - dragOffY - 22) + 'px';
+}
+
+function onEnd(e) {
+  e.preventDefault();
+  if (!dragging) return;
+  dragging.el.classList.remove('dragging');
+
+  const rect = dragging.el.getBoundingClientRect();
+  const areaRect = gameArea.getBoundingClientRect();
+  const ix = rect.left - areaRect.left + rect.width/2;
+  const iy = rect.top - areaRect.top + rect.height/2;
+  const npcY = getNPCY();
+  const dx = ix - NPC_X, dy = iy - npcY;
+
+  if (Math.sqrt(dx*dx+dy*dy) < NPC_DROP_R + 30) {
+    // deliver
+    dragging.delivered = true;
+    dragging.el.classList.add('delivered');
+    delivered++;
+    deliveredCountEl.textContent = delivered;
+
+    // particles
+    for (let k = 0; k < 5; k++) {
+      const p2 = document.createElement('div');
+      p2.className = 'particle';
+      p2.textContent = ['💛','✨','🌸'][k % 3];
+      p2.style.left = (NPC_X + (Math.random()-0.5)*40) + 'px';
+      p2.style.top = (npcY + (Math.random()-0.5)*40) + 'px';
+      gameArea.appendChild(p2);
+      setTimeout(() => p2.remove(), 1000);
+    }
+
+    npcEmoji.style.filter = 'drop-shadow(0 0 12px #f4c95d)';
+
+    if (delivered >= 1) {
+      npcEmoji.textContent = '😊';
+      gameOver = true;
+      setTimeout(() => {
+        document.getElementById('overlayTitle').textContent = '따뜻한 마음! 🌸';
+        document.getElementById('overlayMsg').textContent = 'NPC가 기뻐했어요!';
+        document.getElementById('overlayBtn').style.display = 'none';
+        overlay.classList.add('show');
+        window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+      }, 900);
+    }
+  } else {
+    // return to start
+    dragging.el.style.left = dragging.startX + 'px';
+    dragging.el.style.top = dragging.startY + 'px';
+  }
+
+  dragging = null;
+}
+
+gameArea.addEventListener('touchstart', onStart, { passive: false });
+gameArea.addEventListener('touchmove', onMove, { passive: false });
+gameArea.addEventListener('touchend', onEnd, { passive: false });
+gameArea.addEventListener('mousedown', onStart);
+gameArea.addEventListener('mousemove', onMove);
+gameArea.addEventListener('mouseup', onEnd);
+
+document.getElementById('overlayBtn').addEventListener('click', () => {
+  overlay.classList.remove('show');
+  document.getElementById('overlayBtn').style.display = 'block';
+  createItems();
+});
+
+createItems();
+</script>
+</body>
+</html>

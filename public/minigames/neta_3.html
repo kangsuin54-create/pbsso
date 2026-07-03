@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>마음 다독임</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Segoe UI', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 24px;
+    user-select: none;
+    transition: background 1s;
+  }
+  body.warm { background: #1a0a22; }
+  h1 { font-size: 1.4rem; text-align: center; }
+  .subtitle { font-size: 0.85rem; color: #aaa; text-align: center; }
+  .char-area {
+    position: relative;
+    width: 160px; height: 160px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .char-emoji { font-size: 5.5rem; z-index: 2; position: relative; }
+  .ring-progress {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+  .heart-badge {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    font-size: 1.4rem;
+    z-index: 3;
+    animation: heartBeat 1s ease infinite;
+  }
+  @keyframes heartBeat {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.25); }
+  }
+  .gauge-label { font-size: 0.88rem; color: #aaa; }
+  .btn-hold {
+    width: 130px; height: 130px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #cc44aa, #f4c95d);
+    border: none;
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #0a0e27;
+    cursor: pointer;
+    touch-action: auto;
+    -webkit-tap-highlight-color: transparent;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 6px;
+    box-shadow: 0 4px 20px rgba(204,68,170,0.5);
+    transition: transform 0.1s;
+  }
+  .btn-hold.holding { transform: scale(0.92); box-shadow: 0 2px 8px rgba(204,68,170,0.8); }
+  .btn-icon { font-size: 2rem; }
+  .hint { font-size: 0.78rem; color: #888; text-align: center; }
+  .success-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(10,14,39,0.93);
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    gap: 16px;
+  }
+  .success-overlay.show { display: flex; }
+  .success-msg { font-size: 1.4rem; color: #f4c95d; text-align: center; }
+  .btn-retry {
+    padding: 12px 28px;
+    background: #f4c95d;
+    color: #0a0e27;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: auto;
+  }
+</style>
+</head>
+<body id="bodyEl">
+<h1>💗 마음 다독임</h1>
+<p class="subtitle">버튼을 꾹 눌러서 마음을 다독여요!</p>
+<div class="char-area">
+  <canvas class="ring-progress" id="ringCanvas" width="160" height="160"></canvas>
+  <span class="char-emoji" id="charEmoji">🧙</span>
+  <span class="heart-badge">💗</span>
+</div>
+<div class="gauge-label" id="gaugeLabel">0%</div>
+<button class="btn-hold" id="holdBtn" style="touch-action:auto;">
+  <span class="btn-icon">🤲</span>
+  <span>꾹 눌러요!</span>
+</button>
+<p class="hint">3초 동안 누르고 있으면 완성!</p>
+<div class="success-overlay" id="successOverlay">
+  <div style="font-size:3rem;">💗</div>
+  <div class="success-msg">마음이 따뜻해졌어요! 💗<br>잘 다독였어요!</div>
+  <button class="btn-retry" onclick="resetGame()">다시 도전! 💪</button>
+</div>
+<script>
+  let gauge = 0, holding = false, raf, completed = false;
+  const DURATION = 3000; // ms
+  let heldMs = 0, lastTs = null;
+
+  const ringCanvas = document.getElementById('ringCanvas');
+  const rctx = ringCanvas.getContext('2d');
+
+  function drawRing(pct) {
+    rctx.clearRect(0,0,160,160);
+    const cx=80,cy=80,R=68,lw=10;
+    // bg ring
+    rctx.beginPath();
+    rctx.arc(cx,cy,R,-Math.PI/2,Math.PI*2-Math.PI/2);
+    rctx.strokeStyle = '#1a1a3a';
+    rctx.lineWidth = lw;
+    rctx.stroke();
+    // fill ring
+    if (pct > 0) {
+      rctx.beginPath();
+      rctx.arc(cx,cy,R,-Math.PI/2, Math.PI*2*pct - Math.PI/2);
+      rctx.strokeStyle = `hsl(${280+pct*60},80%,60%)`;
+      rctx.lineWidth = lw;
+      rctx.lineCap = 'round';
+      rctx.stroke();
+    }
+  }
+
+  function tick(ts) {
+    if (!holding || completed) { lastTs = null; return; }
+    if (lastTs === null) lastTs = ts;
+    const dt = ts - lastTs; lastTs = ts;
+    heldMs = Math.min(DURATION, heldMs + dt);
+    gauge = heldMs / DURATION;
+    drawRing(gauge);
+    document.getElementById('gaugeLabel').textContent = Math.round(gauge*100) + '%';
+    if (gauge >= 1) {
+      completed = true;
+      document.getElementById('charEmoji').textContent = '🥰';
+      document.getElementById('bodyEl').classList.add('warm');
+      setTimeout(() => {
+        document.getElementById('successOverlay').classList.add('show');
+        window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+      }, 600);
+      return;
+    }
+    raf = requestAnimationFrame(tick);
+  }
+
+  function decay() {
+    if (holding || completed) return;
+    heldMs = Math.max(0, heldMs - 40);
+    gauge = heldMs / DURATION;
+    drawRing(gauge);
+    document.getElementById('gaugeLabel').textContent = Math.round(gauge*100) + '%';
+    if (heldMs > 0) raf = requestAnimationFrame(decay);
+  }
+
+  function startHold() {
+    if (completed) return;
+    holding = true;
+    cancelAnimationFrame(raf);
+    document.getElementById('holdBtn').classList.add('holding');
+    raf = requestAnimationFrame(tick);
+  }
+  function endHold() {
+    if (completed) return;
+    holding = false; lastTs = null;
+    document.getElementById('holdBtn').classList.remove('holding');
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(decay);
+  }
+
+  function resetGame() {
+    gauge=0; heldMs=0; holding=false; completed=false; lastTs=null;
+    cancelAnimationFrame(raf);
+    drawRing(0);
+    document.getElementById('gaugeLabel').textContent='0%';
+    document.getElementById('charEmoji').textContent='🧙';
+    document.getElementById('bodyEl').classList.remove('warm');
+    document.getElementById('holdBtn').classList.remove('holding');
+    document.getElementById('successOverlay').classList.remove('show');
+  }
+
+  const btn = document.getElementById('holdBtn');
+  btn.addEventListener('mousedown',  startHold);
+  btn.addEventListener('mouseup',    endHold);
+  btn.addEventListener('mouseleave', endHold);
+  btn.addEventListener('touchstart', e=>{ e.preventDefault(); startHold(); },{passive:false});
+  btn.addEventListener('touchend',   e=>{ e.preventDefault(); endHold(); },{passive:false});
+  btn.addEventListener('touchcancel',endHold);
+
+  drawRing(0);
+</script>
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>유혹의 안개</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Arial', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+  }
+  #header {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: 10px; text-align: center; z-index: 20;
+    background: rgba(10,14,39,0.8);
+  }
+  h1 { font-size: 18px; color: #f4c95d; }
+  #subtitle { font-size: 11px; color: #aaa; }
+  #canvas { display: block; }
+  #fog {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(200,200,220,0.12);
+    pointer-events: none; z-index: 5;
+  }
+  #hud {
+    position: fixed; bottom: 10px; left: 0; right: 0;
+    text-align: center; z-index: 20;
+    font-size: 14px; color: #f4c95d;
+  }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10,14,39,0.92);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 26px; color: #f4c95d; margin-bottom: 16px; text-align: center; }
+  #overlay p { font-size: 14px; color: #ccc; margin-bottom: 24px; }
+  .btn {
+    background: #f4c95d; color: #0a0e27;
+    border: none; border-radius: 24px;
+    padding: 12px 32px; font-size: 16px; font-weight: bold;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>🌫️ 유혹의 안개</h1>
+  <div id="subtitle">💙 를 드래그해서 ⭐ 까지 이동! 함정은 2개 이하로!</div>
+</div>
+<div id="fog"></div>
+<canvas id="canvas"></canvas>
+<div id="hud">함정 접촉: <span id="trapCount">0</span>/2 | 목표까지 드래그!</div>
+
+<div id="overlay">
+  <h2 id="overlayTitle"></h2>
+  <p id="overlayMsg"></p>
+  <button class="btn" id="overlayBtn">다시 도전! 💪</button>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+const trapCountEl = document.getElementById('trapCount');
+
+let W, H;
+let player, goal, traps;
+let isDragging = false;
+let dragOffX = 0, dragOffY = 0;
+let trapHits = 0;
+let hitCooldown = {};
+let gameOver = false;
+let animId;
+let time = 0;
+
+const TRAP_EMOJIS = ['✨', '💰', '💎', '🍬'];
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+
+function init() {
+  trapHits = 0;
+  trapCountEl.textContent = 0;
+  gameOver = false;
+  hitCooldown = {};
+  overlay.classList.remove('show');
+  document.getElementById('overlayBtn').style.display = 'block';
+
+  player = { x: 60, y: H / 2, r: 18 };
+  goal = { x: W - 60, y: H / 2, r: 22 };
+
+  const trapY = [H * 0.25, H * 0.5, H * 0.75, H * 0.35];
+  traps = [
+    { x: W * 0.3, y: trapY[0], r: 22, emoji: TRAP_EMOJIS[0], dx: 0.6 },
+    { x: W * 0.5, y: trapY[1], r: 22, emoji: TRAP_EMOJIS[1], dx: -0.5 },
+    { x: W * 0.65, y: trapY[2], r: 22, emoji: TRAP_EMOJIS[2], dx: 0.7 },
+    { x: W * 0.42, y: trapY[3], r: 22, emoji: TRAP_EMOJIS[3], dx: -0.4 },
+  ];
+}
+
+function getPos(e) {
+  const t = e.touches ? e.touches[0] : e;
+  return { x: t.clientX, y: t.clientY };
+}
+
+function onStart(e) {
+  e.preventDefault();
+  if (gameOver) return;
+  const p = getPos(e);
+  const dx = p.x - player.x, dy = p.y - player.y;
+  if (Math.sqrt(dx*dx+dy*dy) < player.r + 15) {
+    isDragging = true;
+    dragOffX = dx; dragOffY = dy;
+  }
+}
+function onMove(e) {
+  e.preventDefault();
+  if (!isDragging || gameOver) return;
+  const p = getPos(e);
+  player.x = Math.max(player.r, Math.min(W - player.r, p.x - dragOffX));
+  player.y = Math.max(60, Math.min(H - player.r - 30, p.y - dragOffY));
+}
+function onEnd(e) { e.preventDefault(); isDragging = false; }
+
+canvas.addEventListener('touchstart', onStart, { passive: false });
+canvas.addEventListener('touchmove', onMove, { passive: false });
+canvas.addEventListener('touchend', onEnd, { passive: false });
+canvas.addEventListener('mousedown', onStart);
+canvas.addEventListener('mousemove', onMove);
+canvas.addEventListener('mouseup', onEnd);
+
+function checkCollisions() {
+  traps.forEach((trap, i) => {
+    if (hitCooldown[i]) return;
+    const dx = player.x - trap.x, dy = player.y - trap.y;
+    if (Math.sqrt(dx*dx+dy*dy) < player.r + trap.r - 5) {
+      trapHits++;
+      trapCountEl.textContent = trapHits;
+      hitCooldown[i] = true;
+      setTimeout(() => { hitCooldown[i] = false; }, 1200);
+      if (trapHits > 2) {
+        gameOver = true;
+        cancelAnimationFrame(animId);
+        document.getElementById('overlayTitle').textContent = '유혹에 빠졌어요! 😅';
+        document.getElementById('overlayMsg').textContent = '함정을 3개 이상 건드렸어요.';
+        overlay.classList.add('show');
+      }
+    }
+  });
+
+  // goal
+  const dx = player.x - goal.x, dy = player.y - goal.y;
+  if (Math.sqrt(dx*dx+dy*dy) < player.r + goal.r) {
+    if (!gameOver) {
+      gameOver = true;
+      cancelAnimationFrame(animId);
+      setTimeout(() => {
+        document.getElementById('overlayTitle').textContent = '목표 도달! ⭐';
+        document.getElementById('overlayMsg').textContent = `함정 ${trapHits}개 접촉으로 통과했어요!`;
+        document.getElementById('overlayBtn').style.display = 'none';
+        overlay.classList.add('show');
+        window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+      }, 400);
+    }
+  }
+}
+
+function drawLoop(ts) {
+  time += 0.02;
+  ctx.clearRect(0, 0, W, H);
+
+  // background dots
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  for (let i = 0; i < 20; i++) {
+    const x = (i * 113 + time * 10) % W;
+    const y = (i * 79 + time * 5) % (H - 100) + 60;
+    ctx.beginPath();
+    ctx.arc(x, y, 1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // traps wobble
+  traps.forEach((trap, i) => {
+    trap.x += Math.sin(time * 2 + i) * trap.dx;
+    if (trap.x < 80) trap.x = 80;
+    if (trap.x > W - 80) trap.x = W - 80;
+
+    ctx.font = '32px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const alpha = hitCooldown[i] ? 0.3 : 1;
+    ctx.globalAlpha = alpha;
+    ctx.fillText(trap.emoji, trap.x, trap.y);
+    ctx.globalAlpha = 1;
+  });
+
+  // goal
+  const gGrad = ctx.createRadialGradient(goal.x, goal.y, 4, goal.x, goal.y, goal.r + 10);
+  gGrad.addColorStop(0, 'rgba(244,201,93,0.8)');
+  gGrad.addColorStop(1, 'rgba(244,201,93,0)');
+  ctx.beginPath();
+  ctx.arc(goal.x, goal.y, goal.r + 10 + Math.sin(time * 3) * 4, 0, Math.PI * 2);
+  ctx.fillStyle = gGrad;
+  ctx.fill();
+  ctx.font = '32px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('⭐', goal.x, goal.y);
+
+  // player
+  const pGrad = ctx.createRadialGradient(player.x - 4, player.y - 4, 3, player.x, player.y, player.r);
+  pGrad.addColorStop(0, '#e3f2fd');
+  pGrad.addColorStop(0.6, '#4fc3f7');
+  pGrad.addColorStop(1, '#0277bd');
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
+  ctx.fillStyle = pGrad;
+  ctx.fill();
+  ctx.strokeStyle = '#80d8ff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.font = '18px serif';
+  ctx.fillText('💙', player.x, player.y);
+
+  if (!gameOver) checkCollisions();
+  if (!gameOver) animId = requestAnimationFrame(drawLoop);
+}
+
+document.getElementById('overlayBtn').addEventListener('click', () => {
+  cancelAnimationFrame(animId);
+  init();
+  animId = requestAnimationFrame(drawLoop);
+});
+
+window.addEventListener('resize', () => { resize(); init(); });
+resize();
+init();
+animId = requestAnimationFrame(drawLoop);
+</script>
+</body>
+</html>

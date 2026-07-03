@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>나비 포옹법</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Segoe UI', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 24px;
+    user-select: none;
+    transition: background 1.2s;
+  }
+  body.calm1 { background: #0d1a2e; }
+  body.calm2 { background: #1a1020; }
+  body.calm3 { background: #1a2030; }
+  h1 { font-size: 1.4rem; text-align: center; }
+  .subtitle { font-size: 0.85rem; color: #aaa; text-align: center; }
+  .gauge-wrap {
+    width: 240px;
+    position: relative;
+  }
+  .gauge-label { font-size: 0.82rem; color: #aaa; margin-bottom: 6px; text-align: center; }
+  .gauge-bar-bg {
+    height: 18px;
+    background: #12183a;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #2a3060;
+  }
+  .gauge-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #e91e8c, #f4c95d);
+    border-radius: 10px;
+    transition: width 0.4s ease;
+  }
+  .char-area {
+    position: relative;
+    width: 180px; height: 180px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .char-body {
+    font-size: 4.5rem;
+    position: relative; z-index: 2;
+  }
+  .arm-left, .arm-right {
+    position: absolute;
+    font-size: 2.2rem;
+    z-index: 3;
+    top: 52%;
+    transition: transform 0.25s ease;
+  }
+  .arm-left  { left:  8px;  transform-origin: right center; }
+  .arm-right { right: 8px; transform-origin: left center; }
+  .arm-left.pat  { animation: patLeft  0.35s ease; }
+  .arm-right.pat { animation: patRight 0.35s ease; }
+  @keyframes patLeft  {
+    0%,100% { transform: rotate(0deg); }
+    50%  { transform: rotate(-20deg) translateY(-8px); }
+  }
+  @keyframes patRight {
+    0%,100% { transform: rotate(0deg); }
+    50%  { transform: rotate(20deg) translateY(-8px); }
+  }
+  .tap-count { font-size: 0.88rem; color: #aaa; }
+  .btn-tap {
+    padding: 16px 40px;
+    background: linear-gradient(135deg, #f4c95d, #e67e22);
+    color: #0a0e27;
+    border: none;
+    border-radius: 14px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: auto;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 4px 16px rgba(244,201,93,0.4);
+  }
+  .btn-tap:active { opacity: 0.8; }
+  .success-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(10,14,39,0.93);
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    gap: 16px;
+  }
+  .success-overlay.show { display: flex; }
+  .success-msg { font-size: 1.4rem; color: #f4c95d; text-align: center; }
+  .btn-retry {
+    padding: 12px 28px;
+    background: #f4c95d;
+    color: #0a0e27;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: auto;
+  }
+</style>
+</head>
+<body id="bodyEl">
+<h1>🦋 나비 포옹법</h1>
+<p class="subtitle">"토닥" 버튼을 3번 탭해서 긴장을 풀어요!</p>
+<div class="gauge-wrap">
+  <div class="gauge-label">긴장 수치</div>
+  <div class="gauge-bar-bg">
+    <div class="gauge-bar-fill" id="gaugeFill" style="width:100%"></div>
+  </div>
+</div>
+<div class="char-area">
+  <span class="arm-left" id="armLeft">🤲</span>
+  <span class="char-body">🧙</span>
+  <span class="arm-right" id="armRight">🤲</span>
+</div>
+<div class="tap-count" id="tapCount">토닥: 0 / 3번</div>
+<button class="btn-tap" id="tapBtn">🤗 토닥</button>
+<div class="success-overlay" id="successOverlay">
+  <div style="font-size:3rem;">🦋</div>
+  <div class="success-msg">긴장이 풀렸어요! 🦋<br>나비처럼 가벼워졌어요!</div>
+  <button class="btn-retry" onclick="resetGame()">다시 도전! 💪</button>
+</div>
+<script>
+  let taps = 0, MAX = 3, side = 0, locked = false;
+  const calmClasses = ['calm1','calm2','calm3'];
+
+  function pat() {
+    if (locked) return;
+    taps++;
+    const pct = Math.max(0, 100 - taps*(100/MAX));
+    document.getElementById('gaugeFill').style.width = pct + '%';
+    document.getElementById('tapCount').textContent = `토닥: ${taps} / ${MAX}번`;
+    const body = document.getElementById('bodyEl');
+    body.className = calmClasses[taps-1] || '';
+
+    const arm = side === 0 ? document.getElementById('armLeft') : document.getElementById('armRight');
+    arm.classList.remove('pat');
+    void arm.offsetWidth;
+    arm.classList.add('pat');
+    side = 1 - side;
+
+    if (taps >= MAX) {
+      locked = true;
+      setTimeout(() => {
+        document.getElementById('successOverlay').classList.add('show');
+        window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+      }, 700);
+    }
+  }
+
+  function resetGame() {
+    taps = 0; side = 0; locked = false;
+    document.getElementById('gaugeFill').style.width = '100%';
+    document.getElementById('tapCount').textContent = '토닥: 0 / 3번';
+    document.getElementById('bodyEl').className = '';
+    document.getElementById('armLeft').classList.remove('pat');
+    document.getElementById('armRight').classList.remove('pat');
+    document.getElementById('successOverlay').classList.remove('show');
+  }
+
+  const btn = document.getElementById('tapBtn');
+  btn.addEventListener('click', pat);
+  btn.addEventListener('touchend', e => { e.preventDefault(); pat(); }, {passive:false});
+</script>
+</body>
+</html>

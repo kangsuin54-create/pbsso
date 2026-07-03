@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>긍정 확언</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Segoe UI', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 24px;
+  }
+  h1 { font-size: 1.4rem; text-align: center; }
+  .subtitle { font-size: 0.85rem; color: #aaa; text-align: center; }
+  .example-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .example-btn {
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 2px solid #f4c95d;
+    background: transparent;
+    color: #f4c95d;
+    font-size: 0.85rem;
+    cursor: pointer;
+    touch-action: auto;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+  }
+  .example-btn:active { background: rgba(244,201,93,0.2); }
+  textarea {
+    width: 100%;
+    max-width: 360px;
+    height: 72px;
+    border-radius: 12px;
+    border: 2px solid #f4c95d;
+    background: #12183a;
+    color: #fff;
+    font-size: 1rem;
+    padding: 12px;
+    resize: none;
+    outline: none;
+    touch-action: auto;
+    font-family: inherit;
+  }
+  .btn-shout {
+    padding: 12px 32px;
+    background: #f4c95d;
+    color: #0a0e27;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: auto;
+  }
+  .btn-shout:active { opacity: 0.8; }
+  .flying-text {
+    position: fixed;
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: #f4c95d;
+    text-shadow: 0 0 12px #f4c95d, 0 0 24px #fff;
+    pointer-events: none;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 30%;
+    opacity: 0;
+    transition: none;
+    z-index: 50;
+    text-align: center;
+    max-width: 80vw;
+  }
+  .flying-text.animate {
+    animation: flyUp 1.6s ease forwards;
+  }
+  @keyframes flyUp {
+    0%   { opacity: 1; bottom: 30%; }
+    80%  { opacity: 1; bottom: 80%; }
+    100% { opacity: 0; bottom: 88%; }
+  }
+  .success-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(10,14,39,0.93);
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    gap: 16px;
+  }
+  .success-overlay.show { display: flex; }
+  .success-msg { font-size: 1.5rem; color: #f4c95d; text-align: center; }
+  .btn-retry {
+    padding: 12px 28px;
+    background: #f4c95d;
+    color: #0a0e27;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: auto;
+  }
+  .hint { font-size: 0.78rem; color: #888; }
+</style>
+</head>
+<body>
+<h1>✨ 긍정 확언</h1>
+<p class="subtitle">나에게 힘이 되는 말을 외쳐봐요!</p>
+<div class="example-row">
+  <button class="example-btn" onclick="setExample('나는 할 수 있어!')">나는 할 수 있어!</button>
+  <button class="example-btn" onclick="setExample('천천히 하면 돼')">천천히 하면 돼</button>
+  <button class="example-btn" onclick="setExample('나는 소중해')">나는 소중해</button>
+</div>
+<textarea id="affirmInput" placeholder="확언을 직접 입력하거나 위 버튼을 눌러보세요!"></textarea>
+<p class="hint">최소 1글자 이상 입력하세요</p>
+<button class="btn-shout" id="shoutBtn">외치기! 🔊</button>
+<div class="flying-text" id="flyingText"></div>
+<div class="success-overlay" id="successOverlay">
+  <div style="font-size:3rem;">🌟</div>
+  <div class="success-msg">마음에 새겨졌어요! ✨</div>
+  <button class="btn-retry" onclick="resetGame()">다시 도전! 💪</button>
+</div>
+<script>
+  let completed = false;
+
+  function setExample(text) {
+    document.getElementById('affirmInput').value = text;
+  }
+
+  function shout() {
+    if (completed) return;
+    const txt = document.getElementById('affirmInput').value.trim();
+    if (!txt) { alert('확언을 입력해주세요!'); return; }
+    const el = document.getElementById('flyingText');
+    el.textContent = '✨ ' + txt + ' ✨';
+    el.classList.remove('animate');
+    void el.offsetWidth;
+    el.classList.add('animate');
+    completed = true;
+    setTimeout(() => {
+      document.getElementById('successOverlay').classList.add('show');
+      window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+    }, 1800);
+  }
+
+  function resetGame() {
+    completed = false;
+    document.getElementById('affirmInput').value = '';
+    document.getElementById('flyingText').classList.remove('animate');
+    document.getElementById('successOverlay').classList.remove('show');
+  }
+
+  document.getElementById('shoutBtn').addEventListener('click', shout);
+  document.getElementById('shoutBtn').addEventListener('touchend', e => { e.preventDefault(); shout(); });
+
+  document.querySelectorAll('.example-btn').forEach(btn => {
+    btn.addEventListener('touchend', e => {
+      e.preventDefault();
+      const txt = btn.textContent;
+      setExample(txt);
+    });
+  });
+</script>
+</body>
+</html>

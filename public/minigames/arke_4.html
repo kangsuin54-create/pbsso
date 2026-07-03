@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오히려 좋아</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Arial', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    user-select: none;
+  }
+  h1 { font-size: 20px; color: #f4c95d; margin-bottom: 6px; }
+  #subtitle { font-size: 12px; color: #aaa; margin-bottom: 30px; }
+  #game-scene {
+    position: relative;
+    width: 320px; height: 200px;
+    border: 2px solid #1a2040;
+    border-radius: 12px;
+    background: #0d1230;
+    overflow: visible;
+    margin-bottom: 28px;
+  }
+  #character {
+    position: absolute;
+    font-size: 44px;
+    bottom: 20px; left: 20px;
+    transition: left 0.6s ease, bottom 0.3s ease;
+  }
+  #wall {
+    position: absolute;
+    right: 60px; bottom: 20px;
+    width: 44px; height: 90px;
+    background: linear-gradient(180deg, #607d8b, #455a64);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 11px; font-weight: bold;
+    border: 2px solid #90a4ae;
+  }
+  #platform {
+    position: absolute;
+    right: 56px; bottom: 110px;
+    width: 52px; height: 14px;
+    background: #f4c95d;
+    border-radius: 4px;
+    display: none;
+    animation: sparkleIn 0.4s ease;
+    box-shadow: 0 0 12px #f4c95d;
+  }
+  @keyframes sparkleIn {
+    from { opacity: 0; transform: scale(0.5); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes jump {
+    0% { bottom: 20px; }
+    40% { bottom: 120px; left: 180px; }
+    100% { bottom: 20px; left: 220px; }
+  }
+  #character.jumping {
+    animation: jump 0.8s ease forwards;
+  }
+  #step-label {
+    font-size: 15px; color: #f4c95d; margin-bottom: 16px; min-height: 22px;
+    text-align: center;
+  }
+  #yes-btn, #platform-btn {
+    padding: 14px 36px; font-size: 17px; font-weight: bold;
+    border: none; border-radius: 28px;
+    cursor: pointer; transition: transform 0.1s;
+  }
+  #yes-btn {
+    background: linear-gradient(135deg, #f4c95d, #ff9800);
+    color: #0a0e27;
+    box-shadow: 0 4px 16px rgba(244,201,93,0.4);
+    display: block;
+  }
+  #platform-btn {
+    background: linear-gradient(135deg, #4fc3f7, #0277bd);
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(79,195,247,0.4);
+    display: none;
+  }
+  #yes-btn:active, #platform-btn:active { transform: scale(0.93); }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10,14,39,0.92);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 28px; color: #f4c95d; margin-bottom: 16px; text-align: center; }
+  #overlay p { font-size: 15px; color: #ccc; margin-bottom: 24px; }
+  .btn {
+    background: #f4c95d; color: #0a0e27;
+    border: none; border-radius: 24px;
+    padding: 12px 32px; font-size: 16px; font-weight: bold;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<h1>🧙 오히려 좋아!</h1>
+<div id="subtitle">벽 앞에서도 방법을 찾아요!</div>
+
+<div id="game-scene">
+  <div id="character">🧙</div>
+  <div id="wall">벽</div>
+  <div id="platform">🟨</div>
+</div>
+
+<div id="step-label">아이쿠! 벽이 막고 있어요. 어떻게 할까요?</div>
+<button id="yes-btn" ontouchstart="handleYes(event)" onmousedown="handleYes(event)">"오히려 좋아!" 💪</button>
+<button id="platform-btn" ontouchstart="handlePlatform(event)" onmousedown="handlePlatform(event)">🟨 발판 탭!</button>
+
+<div id="overlay">
+  <h2 id="overlayTitle"></h2>
+  <p id="overlayMsg"></p>
+  <button class="btn" id="overlayBtn">다시 도전! 💪</button>
+</div>
+
+<script>
+let step = 0;
+
+function handleYes(e) {
+  e.preventDefault();
+  if (step !== 0) return;
+  step = 1;
+  document.getElementById('platform').style.display = 'block';
+  document.getElementById('step-label').textContent = '✨ 발판이 나타났어요! 탭해서 점프하세요!';
+  document.getElementById('yes-btn').style.display = 'none';
+  document.getElementById('platform-btn').style.display = 'block';
+}
+
+function handlePlatform(e) {
+  e.preventDefault();
+  if (step !== 1) return;
+  step = 2;
+  document.getElementById('platform-btn').style.display = 'none';
+  document.getElementById('step-label').textContent = '🚀 점프!';
+  const char = document.getElementById('character');
+  char.classList.add('jumping');
+  setTimeout(() => {
+    document.getElementById('step-label').textContent = '넘었다! 🎉';
+    setTimeout(() => {
+      document.getElementById('overlayTitle').textContent = '넘었어요! 🎉';
+      document.getElementById('overlayMsg').textContent = '어떤 벽도 방법이 있어요!';
+      document.getElementById('overlayBtn').style.display = 'none';
+      document.getElementById('overlay').classList.add('show');
+      window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+    }, 600);
+  }, 800);
+}
+
+document.getElementById('overlayBtn').addEventListener('click', () => {
+  step = 0;
+  document.getElementById('character').className = '';
+  document.getElementById('character').style.cssText = '';
+  document.getElementById('platform').style.display = 'none';
+  document.getElementById('yes-btn').style.display = 'block';
+  document.getElementById('platform-btn').style.display = 'none';
+  document.getElementById('step-label').textContent = '아이쿠! 벽이 막고 있어요. 어떻게 할까요?';
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('overlayBtn').style.display = 'block';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>안전한 대피소</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Arial', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    transition: background 0.5s;
+  }
+  #canvas { display: block; }
+  #header {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: 10px; text-align: center;
+    z-index: 20; pointer-events: none;
+  }
+  h1 { font-size: 18px; color: #f4c95d; }
+  #subtitle { font-size: 11px; color: #aaa; }
+  #status-bar {
+    position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+    font-size: 14px; color: #f4c95d;
+    background: rgba(0,0,0,0.5); padding: 6px 16px; border-radius: 12px;
+    z-index: 20; pointer-events: none;
+  }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10,14,39,0.92);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 26px; color: #f4c95d; margin-bottom: 16px; text-align: center; }
+  #overlay p { font-size: 14px; color: #ccc; margin-bottom: 24px; }
+  .btn {
+    background: #f4c95d; color: #0a0e27;
+    border: none; border-radius: 24px;
+    padding: 12px 32px; font-size: 16px; font-weight: bold;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>🏠 안전한 대피소</h1>
+  <div id="subtitle">캐릭터를 드래그해서 파스텔 구역으로 3초간 이동!</div>
+</div>
+<canvas id="canvas"></canvas>
+<div id="status-bar">머무른 시간: <span id="holdTime">0.0</span>s / 3s</div>
+
+<div id="overlay">
+  <h2 id="overlayTitle"></h2>
+  <p id="overlayMsg"></p>
+  <button class="btn" id="overlayBtn">다시 도전! 💪</button>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+const holdTimeEl = document.getElementById('holdTime');
+
+let W, H;
+let player = { x: 80, y: 0, r: 20 };
+let safeZone = { x: 0, y: 0, r: 70 };
+let isDragging = false;
+let dragOffX = 0, dragOffY = 0;
+let holdTime = 0;
+let gameOver = false;
+let shakeX = 0, shakeY = 0;
+let noiseParticles = [];
+let lastTs = 0;
+let animId;
+let inSafe = false;
+let time = 0;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  player.y = H / 2;
+  safeZone.x = W * 0.75;
+  safeZone.y = H / 2;
+  initNoise();
+}
+
+function initNoise() {
+  noiseParticles = [];
+  for (let i = 0; i < 12; i++) {
+    noiseParticles.push({
+      x: Math.random() * W * 0.6,
+      y: 60 + Math.random() * (H - 120),
+      vx: (Math.random() - 0.5) * 2,
+      vy: (Math.random() - 0.5) * 2,
+    });
+  }
+}
+
+function init() {
+  player.x = 80;
+  player.y = H / 2;
+  holdTime = 0;
+  gameOver = false;
+  inSafe = false;
+  isDragging = false;
+  lastTs = 0;
+  time = 0;
+  holdTimeEl.textContent = '0.0';
+  overlay.classList.remove('show');
+  document.getElementById('overlayBtn').style.display = 'block';
+  initNoise();
+}
+
+function getPos(e) {
+  const t = e.touches ? e.touches[0] : e;
+  return { x: t.clientX, y: t.clientY };
+}
+
+function onStart(e) {
+  e.preventDefault();
+  if (gameOver) return;
+  const p = getPos(e);
+  const dx = p.x - player.x, dy = p.y - player.y;
+  if (Math.sqrt(dx*dx+dy*dy) < player.r + 15) {
+    isDragging = true;
+    dragOffX = dx; dragOffY = dy;
+  }
+}
+function onMove(e) {
+  e.preventDefault();
+  if (!isDragging) return;
+  const p = getPos(e);
+  player.x = Math.max(player.r, Math.min(W - player.r, p.x - dragOffX));
+  player.y = Math.max(60, Math.min(H - player.r - 30, p.y - dragOffY));
+}
+function onEnd(e) { e.preventDefault(); isDragging = false; }
+
+canvas.addEventListener('touchstart', onStart, { passive: false });
+canvas.addEventListener('touchmove', onMove, { passive: false });
+canvas.addEventListener('touchend', onEnd, { passive: false });
+canvas.addEventListener('mousedown', onStart);
+canvas.addEventListener('mousemove', onMove);
+canvas.addEventListener('mouseup', onEnd);
+
+function gameLoop(ts) {
+  if (gameOver) return;
+  const dt = lastTs ? (ts - lastTs) / 1000 : 0.016;
+  lastTs = ts;
+  time += dt;
+
+  // Check if player in safe zone
+  const dx = player.x - safeZone.x, dy = player.y - safeZone.y;
+  const dist = Math.sqrt(dx*dx+dy*dy);
+  inSafe = dist < safeZone.r - player.r;
+
+  if (inSafe) {
+    holdTime += dt;
+    holdTimeEl.textContent = Math.min(holdTime, 3).toFixed(1);
+  } else {
+    holdTime = Math.max(0, holdTime - dt * 0.5);
+    holdTimeEl.textContent = holdTime.toFixed(1);
+  }
+
+  // shake outside safe
+  if (!inSafe) {
+    shakeX = (Math.random() - 0.5) * 8 * (1 - Math.min(dist / W, 1));
+    shakeY = (Math.random() - 0.5) * 8 * (1 - Math.min(dist / H, 1));
+  } else {
+    shakeX *= 0.7;
+    shakeY *= 0.7;
+  }
+
+  // update noise particles
+  noiseParticles.forEach(p => {
+    p.x += p.vx + (Math.random() - 0.5) * 3;
+    p.y += p.vy + (Math.random() - 0.5) * 3;
+    if (p.x < 0 || p.x > W * 0.65) p.vx *= -1;
+    if (p.y < 60 || p.y > H - 40) p.vy *= -1;
+  });
+
+  // draw
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
+
+  // bg
+  if (inSafe) {
+    ctx.fillStyle = '#0a1520';
+  } else {
+    ctx.fillStyle = '#0a0e27';
+  }
+  ctx.fillRect(-shakeX, -shakeY, W, H);
+
+  // noise X particles
+  if (!inSafe) {
+    noiseParticles.forEach((p, i) => {
+      const alpha = 0.5 + Math.sin(time * 4 + i) * 0.3;
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#e53935';
+      ctx.font = '20px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('❌', p.x, p.y);
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  // safe zone
+  const safeGrad = ctx.createRadialGradient(safeZone.x, safeZone.y, 20, safeZone.x, safeZone.y, safeZone.r);
+  if (inSafe) {
+    safeGrad.addColorStop(0, 'rgba(179,229,252,0.5)');
+    safeGrad.addColorStop(1, 'rgba(179,229,252,0.1)');
+  } else {
+    safeGrad.addColorStop(0, 'rgba(255,200,221,0.3)');
+    safeGrad.addColorStop(1, 'rgba(255,200,221,0.05)');
+  }
+  ctx.beginPath();
+  ctx.arc(safeZone.x, safeZone.y, safeZone.r, 0, Math.PI * 2);
+  ctx.fillStyle = safeGrad;
+  ctx.fill();
+  ctx.strokeStyle = inSafe ? '#4fc3f7' : '#f48fb1';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // safe zone label
+  ctx.fillStyle = inSafe ? '#4fc3f7' : '#f48fb1';
+  ctx.font = '13px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🏠 휴식 구역', safeZone.x, safeZone.y - safeZone.r - 14);
+
+  // hold bar inside zone
+  if (holdTime > 0) {
+    const bw = 80;
+    const bh = 8;
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath();
+    ctx.roundRect(safeZone.x - bw/2, safeZone.y + safeZone.r - 30, bw, bh, 4);
+    ctx.fill();
+    ctx.fillStyle = '#4fc3f7';
+    ctx.beginPath();
+    ctx.roundRect(safeZone.x - bw/2, safeZone.y + safeZone.r - 30, bw * Math.min(holdTime/3,1), bh, 4);
+    ctx.fill();
+  }
+
+  // player
+  const pGrad = ctx.createRadialGradient(player.x - 5, player.y - 5, 4, player.x, player.y, player.r);
+  pGrad.addColorStop(0, '#e3f2fd');
+  pGrad.addColorStop(1, inSafe ? '#66bb6a' : '#4fc3f7');
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
+  ctx.fillStyle = pGrad;
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.font = '18px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('😰', player.x, player.y);
+
+  ctx.restore();
+
+  if (holdTime >= 3) {
+    gameOver = true;
+    cancelAnimationFrame(animId);
+    setTimeout(() => {
+      document.getElementById('overlayTitle').textContent = '안전해요! 🌸';
+      document.getElementById('overlayMsg').textContent = '3초간 휴식 구역에 머물렀어요!';
+      document.getElementById('overlayBtn').style.display = 'none';
+      overlay.classList.add('show');
+      window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+    }, 500);
+    return;
+  }
+
+  animId = requestAnimationFrame(gameLoop);
+}
+
+document.getElementById('overlayBtn').addEventListener('click', () => {
+  cancelAnimationFrame(animId);
+  init();
+  animId = requestAnimationFrame(gameLoop);
+});
+
+window.addEventListener('resize', () => { resize(); init(); });
+resize();
+init();
+animId = requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>

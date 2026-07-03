@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>지금 여기</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Segoe UI', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+  }
+  .scene-bg {
+    position: absolute;
+    inset: 0;
+    background: #0a0e27;
+  }
+  /* simple science room lines */
+  .scene-bg::before {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 40%;
+    background: linear-gradient(to top, #0d1530, transparent);
+  }
+  .table {
+    position: absolute;
+    bottom: 18%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    height: 14px;
+    background: #2a3060;
+    border-radius: 4px;
+    border-top: 3px solid #3a4080;
+  }
+  .ui-top {
+    position: fixed; top: 0; left: 0; right: 0;
+    text-align: center; padding: 16px;
+    z-index: 20; pointer-events: none;
+  }
+  .ui-top h1 { font-size: 1.2rem; color: #f4c95d; }
+  .ui-top p  { font-size: 0.8rem; color: #aaa; margin-top: 4px; }
+  .found-list {
+    position: fixed; bottom: 16px; left: 0; right: 0;
+    text-align: center;
+    font-size: 1.4rem;
+    z-index: 20; pointer-events: none;
+    letter-spacing: 8px;
+  }
+  .found-count {
+    position: fixed; bottom: 52px; left: 0; right: 0;
+    text-align: center; font-size: 0.82rem; color: #aaa;
+    z-index: 20; pointer-events: none;
+  }
+  .item {
+    position: fixed;
+    font-size: 24px;
+    cursor: pointer;
+    z-index: 10;
+    -webkit-tap-highlight-color: transparent;
+    transition: opacity 0.1s;
+  }
+  .item.found {
+    animation: itemFound 0.6s ease forwards;
+  }
+  @keyframes itemFound {
+    0%   { transform: scale(1); opacity: 1; }
+    50%  { transform: scale(2.5); opacity: 1; }
+    100% { transform: scale(0); opacity: 0; }
+  }
+  .sparkle-float {
+    position: fixed;
+    pointer-events: none;
+    font-size: 1.2rem;
+    z-index: 30;
+    animation: sFly 0.9s ease forwards;
+  }
+  @keyframes sFly {
+    0%   { opacity:1; transform:translate(0,0); }
+    100% { opacity:0; transform:translate(var(--tx),var(--ty)); }
+  }
+  .success-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(10,14,39,0.93);
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    gap: 16px;
+  }
+  .success-overlay.show { display: flex; }
+  .success-msg { font-size: 1.4rem; color: #f4c95d; text-align: center; }
+  .btn-retry {
+    padding: 12px 28px;
+    background: #f4c95d;
+    color: #0a0e27;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: auto;
+  }
+</style>
+</head>
+<body>
+<div class="scene-bg"></div>
+<div class="table"></div>
+<div class="ui-top">
+  <h1>🔍 지금 여기</h1>
+  <p>화면 곳곳에 숨겨진 아이템 4개를 찾아요!</p>
+</div>
+<div class="found-count" id="foundCount">찾음: 0 / 4</div>
+<div class="found-list" id="foundList"></div>
+<div class="success-overlay" id="successOverlay">
+  <div style="font-size:3rem;">🌟</div>
+  <div class="success-msg">모두 찾았어요! 👀<br>집중력 최고야!</div>
+  <button class="btn-retry" onclick="resetGame()">다시 도전! 💪</button>
+</div>
+<script>
+  const ITEMS = [
+    {emoji:'⭐', id:'star'},
+    {emoji:'🦋', id:'butterfly'},
+    {emoji:'🔑', id:'key'},
+    {emoji:'🌿', id:'leaf'},
+  ];
+  let found = [], itemEls = [], completed = false;
+  const FOUND_LIST_EMOJIS = [];
+
+  function randPos() {
+    return {
+      x: 12 + Math.random()*72,
+      y: 22 + Math.random()*58
+    };
+  }
+
+  function initGame() {
+    found = []; completed = false;
+    FOUND_LIST_EMOJIS.length = 0;
+    itemEls.forEach(el => el.remove());
+    itemEls = [];
+    document.getElementById('foundCount').textContent = '찾음: 0 / 4';
+    document.getElementById('foundList').textContent = '';
+    document.getElementById('successOverlay').classList.remove('show');
+
+    // shuffle positions, ensure not overlapping too badly
+    ITEMS.forEach(it => {
+      const pos = randPos();
+      const el = document.createElement('div');
+      el.className = 'item';
+      el.id = 'item_'+it.id;
+      el.textContent = it.emoji;
+      el.style.left = pos.x + 'vw';
+      el.style.top  = pos.y + 'vh';
+      el.addEventListener('click', () => tapItem(it, el));
+      el.addEventListener('touchend', e => { e.preventDefault(); tapItem(it, el); }, {passive:false});
+      document.body.appendChild(el);
+      itemEls.push(el);
+    });
+  }
+
+  function tapItem(it, el) {
+    if (found.includes(it.id) || completed) return;
+    found.push(it.id);
+    el.classList.add('found');
+    spawnSparkles(el);
+    FOUND_LIST_EMOJIS.push(it.emoji);
+    document.getElementById('foundList').textContent = FOUND_LIST_EMOJIS.join(' ');
+    document.getElementById('foundCount').textContent = `찾음: ${found.length} / 4`;
+    if (found.length >= 4) {
+      completed = true;
+      setTimeout(() => {
+        document.getElementById('successOverlay').classList.add('show');
+        window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+      }, 800);
+    }
+  }
+
+  function spawnSparkles(el) {
+    const rect = el.getBoundingClientRect();
+    const cx = rect.left + rect.width/2;
+    const cy = rect.top  + rect.height/2;
+    ['✨','⭐','💫'].forEach((em,i) => {
+      const s = document.createElement('div');
+      s.className = 'sparkle-float';
+      s.textContent = em;
+      const angle = (i/3)*Math.PI*2;
+      s.style.cssText = `left:${cx}px;top:${cy}px;--tx:${Math.cos(angle)*50}px;--ty:${Math.sin(angle)*50-30}px;`;
+      document.body.appendChild(s);
+      setTimeout(()=>s.remove(),1000);
+    });
+  }
+
+  function resetGame() { initGame(); }
+  initGame();
+</script>
+</body>
+</html>

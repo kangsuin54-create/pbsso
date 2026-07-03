@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>고개 끄덕</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Arial', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex; flex-direction: column; align-items: center;
+    user-select: none;
+  }
+  #header { padding: 12px; text-align: center; }
+  h1 { font-size: 18px; color: #f4c95d; }
+  #npc-area {
+    display: flex; flex-direction: column; align-items: center;
+    margin-top: 10px;
+  }
+  #npc-emoji { font-size: 60px; margin-bottom: 8px; }
+  #speech-bubble {
+    background: #1a2040;
+    border: 2px solid #2a3060;
+    border-radius: 16px;
+    padding: 10px 20px;
+    font-size: 15px; color: #fff;
+    margin-bottom: 16px; max-width: 260px; text-align: center;
+    position: relative;
+  }
+  #speech-bubble::after {
+    content: '';
+    position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #2a3060;
+  }
+  #score-wrap { font-size: 14px; color: #aaa; margin: 8px 0 4px; }
+  #canvas-wrap {
+    position: relative;
+    width: 100vw;
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  #lane {
+    position: relative;
+    width: 80px;
+    flex: 1;
+    background: rgba(255,255,255,0.02);
+    border-left: 1px solid rgba(255,255,255,0.1);
+    border-right: 1px solid rgba(255,255,255,0.1);
+    overflow: hidden;
+  }
+  #judge-line {
+    position: absolute;
+    bottom: 80px; left: 0; right: 0;
+    height: 4px;
+    background: rgba(244,201,93,0.7);
+    border-radius: 2px;
+  }
+  #tap-btn {
+    width: 80px; height: 80px;
+    background: radial-gradient(circle, #f4c95d, #ff9800);
+    border-radius: 50%;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(244,201,93,0.5);
+    margin: 8px 0 16px;
+    flex-shrink: 0;
+  }
+  #tap-btn:active { transform: scale(0.88); }
+  .note {
+    position: absolute;
+    left: 50%;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fff8, #f4c95d);
+    border: 3px solid #f4c95d;
+    transform: translateX(-50%);
+    box-shadow: 0 0 10px rgba(244,201,93,0.6);
+  }
+  #feedback {
+    position: absolute;
+    top: 40%; left: 50%; transform: translate(-50%,-50%);
+    font-size: 22px; font-weight: bold;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+  #feedback.show { opacity: 1; animation: popFade 0.6s ease forwards; }
+  @keyframes popFade {
+    0% { opacity:1; transform:translate(-50%,-70%); }
+    100% { opacity:0; transform:translate(-50%,-120%); }
+  }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10,14,39,0.92);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 26px; color: #f4c95d; margin-bottom: 16px; }
+  #overlay p { font-size: 14px; color: #ccc; margin-bottom: 24px; }
+  .btn {
+    background: #f4c95d; color: #0a0e27;
+    border: none; border-radius: 24px;
+    padding: 12px 32px; font-size: 16px; font-weight: bold;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>🎵 고개 끄덕</h1>
+</div>
+<div id="npc-area">
+  <div id="npc-emoji">😔</div>
+  <div id="speech-bubble">"오늘 정말 힘들었어..."</div>
+</div>
+<div id="score-wrap">Good: <span id="goodCount">0</span>/5 노트 | 필요: 3개 이상</div>
+<div id="canvas-wrap">
+  <div id="lane">
+    <div id="judge-line"></div>
+    <div id="feedback"></div>
+  </div>
+  <button id="tap-btn" ontouchstart="handleTap(event)" onmousedown="handleTap(event)">👆</button>
+</div>
+
+<div id="overlay">
+  <h2 id="overlayTitle"></h2>
+  <p id="overlayMsg"></p>
+  <button class="btn" id="overlayBtn">다시 도전! 💪</button>
+</div>
+
+<script>
+const lane = document.getElementById('lane');
+const judgeLineEl = document.getElementById('judge-line');
+const feedbackEl = document.getElementById('feedback');
+const goodCountEl = document.getElementById('goodCount');
+const overlay = document.getElementById('overlay');
+const npcEmoji = document.getElementById('npc-emoji');
+
+let notes = [];
+let notesSpawned = 0;
+const TOTAL_NOTES = 5;
+let goodCount = 0;
+let gameRunning = false;
+let lastSpawnTime = 0;
+let animId;
+
+// judge line Y from top of lane
+function getJudgeY() {
+  return lane.clientHeight - 80 - 22; // center of note at judge
+}
+
+const BPM = 72;
+const BEAT_MS = (60 / BPM) * 1000;
+const NOTE_TRAVEL_MS = BEAT_MS * 3;
+const GOOD_WINDOW = 280; // ms
+
+let gameStart = null;
+
+function spawnNote() {
+  const el = document.createElement('div');
+  el.className = 'note';
+  el.style.top = '-44px';
+  lane.appendChild(el);
+  notes.push({ el, spawnTime: performance.now(), hit: false, missed: false });
+}
+
+function showFeedback(text, color) {
+  feedbackEl.textContent = text;
+  feedbackEl.style.color = color;
+  feedbackEl.classList.remove('show');
+  void feedbackEl.offsetWidth;
+  feedbackEl.classList.add('show');
+}
+
+function handleTap(e) {
+  e.preventDefault();
+  if (!gameRunning) return;
+
+  const now = performance.now();
+  const judgeY = getJudgeY();
+  let tapped = false;
+
+  for (const note of notes) {
+    if (note.hit || note.missed) continue;
+    const elapsed = now - note.spawnTime;
+    const pct = elapsed / NOTE_TRAVEL_MS;
+    const targetPct = judgeY / lane.clientHeight;
+    const diff = Math.abs(pct - targetPct) * NOTE_TRAVEL_MS;
+    if (diff < GOOD_WINDOW) {
+      note.hit = true;
+      goodCount++;
+      goodCountEl.textContent = goodCount;
+      showFeedback('Good! 👍', '#f4c95d');
+      note.el.style.background = '#66bb6a';
+      tapped = true;
+      break;
+    }
+  }
+  if (!tapped) {
+    showFeedback('Miss...', '#e53935');
+  }
+}
+
+function gameLoop(ts) {
+  if (!gameRunning) return;
+  if (!gameStart) gameStart = ts;
+
+  const elapsed = ts - gameStart;
+  const judgeY = getJudgeY();
+
+  // spawn notes
+  if (notesSpawned < TOTAL_NOTES) {
+    if (elapsed > notesSpawned * BEAT_MS * 2 + 500) {
+      spawnNote();
+      notesSpawned++;
+    }
+  }
+
+  // update notes
+  notes.forEach(note => {
+    if (note.hit) {
+      note.el.style.opacity = '0';
+      return;
+    }
+    const noteElapsed = ts - note.spawnTime;
+    const pct = noteElapsed / NOTE_TRAVEL_MS;
+    const y = pct * lane.clientHeight - 22;
+    note.el.style.top = y + 'px';
+
+    if (y > lane.clientHeight && !note.missed) {
+      note.missed = true;
+      note.el.style.opacity = '0.2';
+    }
+  });
+
+  // check end
+  const done = notesSpawned >= TOTAL_NOTES && notes.every(n => n.hit || n.missed);
+  if (done) {
+    gameRunning = false;
+    cancelAnimationFrame(animId);
+    setTimeout(() => endGame(), 600);
+    return;
+  }
+
+  animId = requestAnimationFrame(gameLoop);
+}
+
+function endGame() {
+  if (goodCount >= 3) {
+    npcEmoji.textContent = '😊';
+    document.getElementById('overlayTitle').textContent = '끄덕끄덕! ✨';
+    document.getElementById('overlayMsg').textContent = `${goodCount}개 Good! 공감해줬어요!`;
+    document.getElementById('overlayBtn').style.display = 'none';
+    overlay.classList.add('show');
+    window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+  } else {
+    document.getElementById('overlayTitle').textContent = '아쉬워요! 😅';
+    document.getElementById('overlayMsg').textContent = `${goodCount}개 Good. 3개 이상 필요해요!`;
+    overlay.classList.add('show');
+  }
+}
+
+function resetGame() {
+  cancelAnimationFrame(animId);
+  notes.forEach(n => n.el.remove());
+  notes = [];
+  notesSpawned = 0;
+  goodCount = 0;
+  goodCountEl.textContent = 0;
+  gameStart = null;
+  npcEmoji.textContent = '😔';
+  overlay.classList.remove('show');
+  document.getElementById('overlayBtn').style.display = 'block';
+  gameRunning = true;
+  animId = requestAnimationFrame(gameLoop);
+}
+
+document.getElementById('overlayBtn').addEventListener('click', resetGame);
+
+gameRunning = true;
+animId = requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>

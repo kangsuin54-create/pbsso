@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6초의 마법</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Arial', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+  }
+  #header {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: 10px; text-align: center; z-index: 20;
+    background: rgba(10,14,39,0.85);
+  }
+  h1 { font-size: 18px; color: #f4c95d; }
+  #subtitle { font-size: 11px; color: #aaa; }
+  #anger-wrap {
+    position: fixed; top: 52px; left: 16px; right: 16px; z-index: 15;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  #anger-label {
+    font-size: 12px; color: #e53935; font-weight: bold;
+    display: flex; justify-content: space-between;
+  }
+  #anger-bar-bg {
+    height: 18px; background: #1a0a0a;
+    border-radius: 9px; border: 1px solid #e53935; overflow: hidden;
+  }
+  #anger-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #ff9800, #e53935);
+    border-radius: 9px;
+    transition: width 0.1s linear;
+  }
+  #canvas { display: block; }
+  #next-label {
+    position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+    font-size: 16px; color: #f4c95d;
+    background: rgba(0,0,0,0.5); padding: 6px 16px; border-radius: 12px;
+  }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10,14,39,0.92);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 26px; color: #f4c95d; margin-bottom: 16px; text-align: center; }
+  #overlay p { font-size: 14px; color: #ccc; margin-bottom: 24px; }
+  .btn {
+    background: #f4c95d; color: #0a0e27;
+    border: none; border-radius: 24px;
+    padding: 12px 32px; font-size: 16px; font-weight: bold;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>😤 6초의 마법</h1>
+  <div id="subtitle">화 게이지 가득 차기 전에 1→6 순서로 탭!</div>
+</div>
+<div id="anger-wrap">
+  <div id="anger-label">
+    <span>화 게이지</span>
+    <span id="timer-text">5.0s</span>
+  </div>
+  <div id="anger-bar-bg"><div id="anger-bar" style="width:0%"></div></div>
+</div>
+<canvas id="canvas"></canvas>
+<div id="next-label">다음: <span id="nextNum">1</span></div>
+
+<div id="overlay">
+  <h2 id="overlayTitle"></h2>
+  <p id="overlayMsg"></p>
+  <button class="btn" id="overlayBtn">다시 도전! 💪</button>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const angerBar = document.getElementById('anger-bar');
+const timerText = document.getElementById('timer-text');
+const nextNumEl = document.getElementById('nextNum');
+const overlay = document.getElementById('overlay');
+
+let W, H;
+let numbers = [];
+let lines = [];
+let nextExpected = 1;
+let timeLeft = 5;
+let gameOver = false;
+let animId;
+let lastTs = 0;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+
+function initGame() {
+  numbers = [];
+  lines = [];
+  nextExpected = 1;
+  timeLeft = 5;
+  gameOver = false;
+  lastTs = 0;
+  angerBar.style.width = '0%';
+  timerText.textContent = '5.0s';
+  nextNumEl.textContent = 1;
+  overlay.classList.remove('show');
+  document.getElementById('overlayBtn').style.display = 'block';
+
+  const margin = 60;
+  const top = 120;
+  const bottom = H - 60;
+  for (let i = 1; i <= 6; i++) {
+    numbers.push({
+      num: i,
+      x: margin + Math.random() * (W - margin * 2),
+      y: top + Math.random() * (bottom - top),
+      tapped: false,
+    });
+  }
+}
+
+function getPos(e) {
+  const t = e.touches ? e.touches[0] : e;
+  return { x: t.clientX, y: t.clientY };
+}
+
+function onTap(e) {
+  e.preventDefault();
+  if (gameOver) return;
+  const p = getPos(e);
+
+  for (const num of numbers) {
+    if (num.tapped) continue;
+    if (num.num !== nextExpected) continue;
+    const dx = p.x - num.x, dy = p.y - num.y;
+    if (Math.sqrt(dx*dx+dy*dy) < 30) {
+      num.tapped = true;
+      if (nextExpected > 1) {
+        const prev = numbers.find(n => n.num === nextExpected - 1);
+        lines.push({ x1: prev.x, y1: prev.y, x2: num.x, y2: num.y });
+      }
+      nextExpected++;
+      nextNumEl.textContent = nextExpected <= 6 ? nextExpected : '✅';
+
+      if (nextExpected > 6) {
+        gameOver = true;
+        cancelAnimationFrame(animId);
+        setTimeout(() => {
+          document.getElementById('overlayTitle').textContent = '6초 성공! 🌟';
+          document.getElementById('overlayMsg').textContent = '화를 6초 만에 가라앉혔어요!';
+          document.getElementById('overlayBtn').style.display = 'none';
+          overlay.classList.add('show');
+          window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+        }, 600);
+      }
+      break;
+    }
+  }
+}
+
+canvas.addEventListener('touchstart', onTap, { passive: false });
+canvas.addEventListener('mousedown', onTap);
+
+function gameLoop(ts) {
+  if (gameOver) return;
+  const dt = lastTs ? (ts - lastTs) / 1000 : 0.016;
+  lastTs = ts;
+
+  timeLeft -= dt;
+  if (timeLeft <= 0) {
+    timeLeft = 0;
+    gameOver = true;
+    cancelAnimationFrame(animId);
+    document.getElementById('overlayTitle').textContent = '화가 폭발했어요! 😤';
+    document.getElementById('overlayMsg').textContent = '시간 안에 숫자를 탭해요!';
+    overlay.classList.add('show');
+    return;
+  }
+
+  const pct = ((5 - timeLeft) / 5) * 100;
+  angerBar.style.width = pct + '%';
+  timerText.textContent = timeLeft.toFixed(1) + 's';
+
+  // background pulse based on anger
+  const r = Math.floor(10 + pct * 0.3);
+  document.body.style.background = `rgb(${r},14,39)`;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // draw lines
+  lines.forEach(l => {
+    ctx.beginPath();
+    ctx.moveTo(l.x1, l.y1);
+    ctx.lineTo(l.x2, l.y2);
+    ctx.strokeStyle = '#f4c95d';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  });
+
+  // draw numbers
+  numbers.forEach(num => {
+    const r2 = 26;
+    ctx.beginPath();
+    ctx.arc(num.x, num.y, r2, 0, Math.PI * 2);
+    if (num.tapped) {
+      ctx.fillStyle = '#66bb6a';
+    } else if (num.num === nextExpected) {
+      ctx.fillStyle = '#f4c95d';
+    } else {
+      ctx.fillStyle = '#1a2040';
+    }
+    ctx.fill();
+    ctx.strokeStyle = num.tapped ? '#66bb6a' : (num.num === nextExpected ? '#fff' : '#2a3060');
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = num.tapped ? '#fff' : (num.num === nextExpected ? '#0a0e27' : '#aaa');
+    ctx.font = 'bold 20px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(num.num, num.x, num.y);
+  });
+
+  animId = requestAnimationFrame(gameLoop);
+}
+
+document.getElementById('overlayBtn').addEventListener('click', () => {
+  cancelAnimationFrame(animId);
+  document.body.style.background = '#0a0e27';
+  initGame();
+  animId = requestAnimationFrame(gameLoop);
+});
+
+window.addEventListener('resize', resize);
+resize();
+initGame();
+animId = requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>

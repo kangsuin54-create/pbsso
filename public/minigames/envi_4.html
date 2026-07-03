@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>마음의 메아리</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Arial', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    user-select: none;
+  }
+  h1 { font-size: 20px; color: #f4c95d; margin-bottom: 6px; }
+  #subtitle { font-size: 12px; color: #aaa; margin-bottom: 24px; }
+  #npc-area {
+    display: flex; align-items: flex-end; gap: 16px;
+    margin-bottom: 28px;
+  }
+  #npc-emoji { font-size: 64px; transition: all 0.5s; }
+  #speech-bubble {
+    background: #1a2040;
+    border: 2px solid #2a3060;
+    border-radius: 16px;
+    padding: 12px 18px;
+    font-size: 16px; color: #fff;
+    max-width: 200px;
+    position: relative;
+  }
+  #speech-bubble::before {
+    content: '';
+    position: absolute; bottom: 14px; left: -12px;
+    border: 6px solid transparent;
+    border-right-color: #2a3060;
+  }
+  #choices { display: flex; flex-direction: column; gap: 12px; width: 300px; }
+  .choice-btn {
+    padding: 14px 16px; font-size: 14px;
+    background: #1a2040;
+    color: #eee;
+    border: 2px solid #2a3060;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    line-height: 1.4;
+  }
+  .choice-btn:active { transform: scale(0.97); }
+  .choice-btn.correct { background: #1b5e20; border-color: #66bb6a; color: #fff; }
+  .choice-btn.wrong { background: #7f0000; border-color: #e53935; color: #fff; }
+  #hint-popup {
+    margin-top: 12px;
+    background: rgba(244,201,93,0.1);
+    border: 1px solid rgba(244,201,93,0.3);
+    border-radius: 12px;
+    padding: 10px 18px;
+    font-size: 13px; color: #f4c95d;
+    max-width: 300px; text-align: center;
+    display: none;
+  }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10,14,39,0.92);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 26px; color: #f4c95d; margin-bottom: 16px; }
+  #overlay p { font-size: 14px; color: #ccc; margin-bottom: 24px; }
+  .btn {
+    background: #f4c95d; color: #0a0e27;
+    border: none; border-radius: 24px;
+    padding: 12px 32px; font-size: 16px; font-weight: bold;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<h1>🪞 마음의 메아리</h1>
+<div id="subtitle">NPC의 마음을 공감하는 말을 골라보세요!</div>
+<div id="npc-area">
+  <div id="npc-emoji">😢</div>
+  <div id="speech-bubble">"나 오늘 너무 힘들어"</div>
+</div>
+<div id="choices">
+  <button class="choice-btn" data-index="0" ontouchstart="choose(event,0)" onmousedown="choose(event,0)">
+    💬 "나도 힘들어"
+  </button>
+  <button class="choice-btn" data-index="1" ontouchstart="choose(event,1)" onmousedown="choose(event,1)">
+    💬 "많이 힘들었겠다, 무슨 일이야?"
+  </button>
+  <button class="choice-btn" data-index="2" ontouchstart="choose(event,2)" onmousedown="choose(event,2)">
+    💬 "그냥 참아"
+  </button>
+</div>
+<div id="hint-popup">💡 핵심 단어가 들어간 답변을 골라봐요!</div>
+
+<div id="overlay">
+  <h2 id="overlayTitle"></h2>
+  <p id="overlayMsg"></p>
+  <button class="btn" id="overlayBtn">다시 도전! 💪</button>
+</div>
+
+<script>
+const CORRECT = 1;
+let locked = false;
+let triedWrong = false;
+const hintPopup = document.getElementById('hint-popup');
+const npcEmoji = document.getElementById('npc-emoji');
+const overlay = document.getElementById('overlay');
+const btns = document.querySelectorAll('.choice-btn');
+
+function choose(e, index) {
+  e.preventDefault();
+  if (locked) return;
+
+  if (index === CORRECT) {
+    locked = true;
+    btns[index].classList.add('correct');
+    hintPopup.style.display = 'none';
+    npcEmoji.textContent = '😊';
+    npcEmoji.style.filter = 'drop-shadow(0 0 12px #f4c95d)';
+    setTimeout(() => {
+      document.getElementById('overlayTitle').textContent = '완벽한 공감! ✨';
+      document.getElementById('overlayMsg').textContent = 'NPC가 마음을 열었어요!';
+      document.getElementById('overlayBtn').style.display = 'none';
+      overlay.classList.add('show');
+      window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+    }, 800);
+  } else {
+    btns[index].classList.add('wrong');
+    hintPopup.style.display = 'block';
+    setTimeout(() => {
+      btns[index].classList.remove('wrong');
+    }, 700);
+    if (triedWrong) {
+      // second wrong — show answer
+      locked = true;
+      setTimeout(() => {
+        btns[CORRECT].classList.add('correct');
+        document.getElementById('overlayTitle').textContent = '아쉬워요! 😅';
+        document.getElementById('overlayMsg').textContent = '공감하는 말을 연습해봐요!';
+        overlay.classList.add('show');
+      }, 800);
+    }
+    triedWrong = true;
+  }
+}
+
+document.getElementById('overlayBtn').addEventListener('click', () => {
+  locked = false;
+  triedWrong = false;
+  btns.forEach(b => b.classList.remove('correct', 'wrong'));
+  hintPopup.style.display = 'none';
+  npcEmoji.textContent = '😢';
+  npcEmoji.style.filter = '';
+  overlay.classList.remove('show');
+  document.getElementById('overlayBtn').style.display = 'block';
+});
+</script>
+</body>
+</html>

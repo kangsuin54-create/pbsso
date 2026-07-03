@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>무지개 다리</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Arial', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex; flex-direction: column; align-items: center;
+    user-select: none;
+  }
+  #header { padding: 14px; text-align: center; }
+  h1 { font-size: 18px; color: #f4c95d; }
+  p { font-size: 12px; color: #aaa; margin-top: 4px; }
+  #canvas { display: block; }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10,14,39,0.92);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 26px; color: #f4c95d; margin-bottom: 16px; text-align: center; }
+  #overlay p { font-size: 14px; color: #ccc; margin-bottom: 24px; }
+  .btn {
+    background: #f4c95d; color: #0a0e27;
+    border: none; border-radius: 24px;
+    padding: 12px 32px; font-size: 16px; font-weight: bold;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>🌈 무지개 다리</h1>
+  <p>두 조각을 중앙으로 드래그해서 합쳐보세요!</p>
+</div>
+<canvas id="canvas"></canvas>
+
+<div id="overlay">
+  <h2 id="overlayTitle"></h2>
+  <p id="overlayMsg"></p>
+  <button class="btn" id="overlayBtn">다시 도전! 💪</button>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+
+let W, H, cx, cy;
+let pieces = [];
+let dragging = null;
+let dragOffX = 0, dragOffY = 0;
+let bridgeAnim = 0;
+let success = false;
+let rainbow = 0;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight - 70;
+  cx = W / 2;
+  cy = H / 2;
+  initPieces();
+}
+
+function initPieces() {
+  pieces = [
+    { id: 0, x: W * 0.18, y: cy, r: 30, label: '내 생각', color: '#4fc3f7', startX: W * 0.18 },
+    { id: 1, x: W * 0.82, y: cy, r: 30, label: '친구 생각', color: '#66bb6a', startX: W * 0.82 },
+  ];
+  bridgeAnim = 0;
+  success = false;
+  rainbow = 0;
+}
+
+function getPos(e) {
+  const t = e.touches ? e.touches[0] : e;
+  const rect = canvas.getBoundingClientRect();
+  return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+}
+
+function onStart(e) {
+  e.preventDefault();
+  const p = getPos(e);
+  for (let i = pieces.length - 1; i >= 0; i--) {
+    const pc = pieces[i];
+    const dx = p.x - pc.x, dy = p.y - pc.y;
+    if (Math.sqrt(dx*dx+dy*dy) < pc.r + 10) {
+      dragging = pc;
+      dragOffX = dx; dragOffY = dy;
+      break;
+    }
+  }
+}
+
+function onMove(e) {
+  e.preventDefault();
+  if (!dragging) return;
+  const p = getPos(e);
+  dragging.x = p.x - dragOffX;
+  dragging.y = p.y - dragOffY;
+}
+
+function onEnd(e) {
+  e.preventDefault();
+  if (!dragging) return;
+
+  // 자석 효과
+  const dx = dragging.x - cx, dy = dragging.y - cy;
+  if (Math.sqrt(dx*dx+dy*dy) < 50) {
+    dragging.x = cx + (dragging.id === 0 ? -20 : 20);
+    dragging.y = cy;
+  }
+
+  dragging = null;
+  checkSuccess();
+}
+
+function checkSuccess() {
+  if (success) return;
+  const p0 = pieces[0], p1 = pieces[1];
+  const dx0 = p0.x - cx, dy0 = p0.y - cy;
+  const dx1 = p1.x - cx, dy1 = p1.y - cy;
+  const dist0 = Math.sqrt(dx0*dx0+dy0*dy0);
+  const dist1 = Math.sqrt(dx1*dx1+dy1*dy1);
+  if (dist0 < 60 && dist1 < 60) {
+    success = true;
+    bridgeAnim = 0;
+    setTimeout(() => {
+      document.getElementById('overlayTitle').textContent = '🌈 무지개 다리 완성!';
+      document.getElementById('overlayMsg').textContent = '두 생각이 하나로 이어졌어요!';
+      document.getElementById('overlayBtn').style.display = 'none';
+      overlay.classList.add('show');
+      window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+    }, 1200);
+  }
+}
+
+canvas.addEventListener('touchstart', onStart, { passive: false });
+canvas.addEventListener('touchmove', onMove, { passive: false });
+canvas.addEventListener('touchend', onEnd, { passive: false });
+canvas.addEventListener('mousedown', onStart);
+canvas.addEventListener('mousemove', onMove);
+canvas.addEventListener('mouseup', onEnd);
+
+document.getElementById('overlayBtn').addEventListener('click', () => {
+  initPieces();
+  overlay.classList.remove('show');
+  document.getElementById('overlayBtn').style.display = 'block';
+});
+
+const RAINBOW = ['#ff4444','#ff9800','#f4c95d','#66bb6a','#4fc3f7','#9c27b0'];
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // 낭떠러지
+  ctx.fillStyle = '#1a0a0a';
+  ctx.beginPath();
+  ctx.arc(cx, cy + H * 0.3, H * 0.25, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 점선 원 (목표)
+  ctx.beginPath();
+  ctx.arc(cx, cy, 45, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(244,201,93,0.4)';
+  ctx.setLineDash([5, 5]);
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 무지개 다리 (성공 시)
+  if (success) {
+    bridgeAnim = Math.min(1, bridgeAnim + 0.04);
+    rainbow = (rainbow + 1) % RAINBOW.length;
+    const arcW = W * 0.5 * bridgeAnim;
+    for (let i = 0; i < 7; i++) {
+      ctx.beginPath();
+      ctx.arc(cx, cy + 30, arcW - i * 6, Math.PI, Math.PI * 2);
+      ctx.strokeStyle = RAINBOW[i % RAINBOW.length];
+      ctx.lineWidth = 5;
+      ctx.stroke();
+    }
+  }
+
+  // 조각들
+  pieces.forEach(pc => {
+    const grad = ctx.createRadialGradient(pc.x - 8, pc.y - 8, 4, pc.x, pc.y, pc.r);
+    grad.addColorStop(0, '#fff');
+    grad.addColorStop(0.5, pc.color);
+    grad.addColorStop(1, pc.color + '88');
+    ctx.beginPath();
+    ctx.arc(pc.x, pc.y, pc.r, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.strokeStyle = pc.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 11px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(pc.label, pc.x, pc.y);
+  });
+
+  requestAnimationFrame(draw);
+}
+
+window.addEventListener('resize', resize);
+resize();
+draw();
+</script>
+</body>
+</html>

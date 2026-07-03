@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>시선 맞춤</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Arial', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    user-select: none;
+  }
+  h1 { font-size: 20px; color: #f4c95d; margin-bottom: 6px; }
+  #subtitle { font-size: 12px; color: #aaa; margin-bottom: 24px; }
+  #npc {
+    font-size: 90px;
+    margin-bottom: 16px;
+    transition: all 0.3s;
+  }
+  #status-text { font-size: 16px; color: #aaa; margin-bottom: 10px; min-height: 24px; }
+  #timing-bar-wrap {
+    width: 260px; height: 20px;
+    background: #1a2040;
+    border-radius: 10px;
+    border: 2px solid #444;
+    overflow: hidden;
+    margin-bottom: 20px;
+    display: none;
+  }
+  #timing-bar {
+    height: 100%;
+    width: 0%;
+    background: #f4c95d;
+    transition: width 0.05s linear;
+  }
+  #focus-btn {
+    padding: 16px 44px; font-size: 18px; font-weight: bold;
+    background: linear-gradient(135deg, #f4c95d, #ff9800);
+    color: #0a0e27; border: none; border-radius: 28px;
+    cursor: pointer; display: none;
+    box-shadow: 0 4px 20px rgba(244,201,93,0.4);
+  }
+  #focus-btn:active { transform: scale(0.93); }
+  #score-display {
+    margin-top: 20px;
+    font-size: 15px; color: #f4c95d;
+  }
+  #beam {
+    width: 200px; height: 4px;
+    background: linear-gradient(90deg, transparent, #f4c95d, transparent);
+    margin: 10px auto; opacity: 0;
+    transition: opacity 0.3s;
+  }
+  #beam.show { opacity: 1; }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10,14,39,0.92);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 26px; color: #f4c95d; margin-bottom: 16px; }
+  #overlay p { font-size: 14px; color: #ccc; margin-bottom: 24px; }
+  .btn {
+    background: #f4c95d; color: #0a0e27;
+    border: none; border-radius: 24px;
+    padding: 12px 32px; font-size: 16px; font-weight: bold;
+    cursor: pointer;
+  }
+  #feedback {
+    font-size: 20px; min-height: 28px; margin-top: 8px;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<h1>👀 시선 맞춤</h1>
+<div id="subtitle">눈이 나타나는 타이밍에 "집중!" 버튼을 눌러요!</div>
+<div id="npc">😶</div>
+<div id="status-text">잠시 후 NPC가 바라봐요...</div>
+<div id="beam"></div>
+<div id="timing-bar-wrap"><div id="timing-bar"></div></div>
+<button id="focus-btn" ontouchstart="handleFocus(event)" onmousedown="handleFocus(event)">집중! 👁️</button>
+<div id="feedback"></div>
+<div id="score-display">성공: <span id="scoreNum">0</span>/2 (기회: <span id="tryNum">3</span>회)</div>
+
+<div id="overlay">
+  <h2 id="overlayTitle"></h2>
+  <p id="overlayMsg"></p>
+  <button class="btn" id="overlayBtn">다시 도전! 💪</button>
+</div>
+
+<script>
+let score = 0;
+let tries = 0;
+const MAX_TRIES = 3;
+const NEEDED = 2;
+let phase = 'waiting'; // waiting | showing | hidden
+let barTimer = null;
+let barStart = 0;
+const WINDOW_MS = 1000;
+let canTap = false;
+let gameRunning = true;
+
+const npc = document.getElementById('npc');
+const statusText = document.getElementById('status-text');
+const focusBtn = document.getElementById('focus-btn');
+const timingBarWrap = document.getElementById('timing-bar-wrap');
+const timingBar = document.getElementById('timing-bar');
+const feedback = document.getElementById('feedback');
+const scoreNum = document.getElementById('scoreNum');
+const tryNum = document.getElementById('tryNum');
+const beam = document.getElementById('beam');
+const overlay = document.getElementById('overlay');
+
+function startRound() {
+  if (!gameRunning) return;
+  phase = 'waiting';
+  npc.textContent = '😶';
+  statusText.textContent = '잠시 후 NPC가 바라봐요...';
+  focusBtn.style.display = 'none';
+  timingBarWrap.style.display = 'none';
+  timingBar.style.width = '0%';
+  canTap = false;
+  beam.classList.remove('show');
+  feedback.textContent = '';
+
+  const delay = 1500 + Math.random() * 1500;
+  setTimeout(showEye, delay);
+}
+
+function showEye() {
+  if (!gameRunning) return;
+  phase = 'showing';
+  npc.textContent = '👀';
+  npc.style.filter = 'drop-shadow(0 0 10px #f4c95d)';
+  statusText.textContent = '지금! 집중 버튼을 눌러요!';
+  focusBtn.style.display = 'block';
+  timingBarWrap.style.display = 'block';
+  canTap = true;
+  barStart = Date.now();
+
+  animBar();
+  setTimeout(hideEye, WINDOW_MS);
+}
+
+function animBar() {
+  if (phase !== 'showing') return;
+  const elapsed = Date.now() - barStart;
+  const pct = Math.min(100, (elapsed / WINDOW_MS) * 100);
+  timingBar.style.width = pct + '%';
+  if (pct < 100) requestAnimationFrame(animBar);
+}
+
+function hideEye() {
+  if (!gameRunning) return;
+  if (canTap) {
+    // missed
+    canTap = false;
+    missed();
+  }
+}
+
+function missed() {
+  phase = 'hidden';
+  npc.textContent = '😶';
+  npc.style.filter = '';
+  statusText.textContent = '놓쳤어요...';
+  focusBtn.style.display = 'none';
+  timingBarWrap.style.display = 'none';
+  feedback.textContent = '❌ 타이밍을 놓쳤어요';
+  tries++;
+  tryNum.textContent = MAX_TRIES - tries;
+  checkEnd();
+}
+
+function handleFocus(e) {
+  e.preventDefault();
+  if (!canTap || !gameRunning) return;
+  canTap = false;
+  phase = 'hidden';
+  score++;
+  tries++;
+  scoreNum.textContent = score;
+  tryNum.textContent = MAX_TRIES - tries;
+  npc.style.filter = '';
+  focusBtn.style.display = 'none';
+  timingBarWrap.style.display = 'none';
+  feedback.textContent = '✅ Good! 눈 맞췄어요!';
+  beam.classList.add('show');
+  statusText.textContent = '잘했어요!';
+  setTimeout(() => beam.classList.remove('show'), 600);
+  checkEnd();
+}
+
+function checkEnd() {
+  if (score >= NEEDED) {
+    gameRunning = false;
+    setTimeout(() => {
+      document.getElementById('overlayTitle').textContent = '눈이 마주쳤어요! ✨';
+      document.getElementById('overlayMsg').textContent = `${score}번 시선을 맞췄어요!`;
+      document.getElementById('overlayBtn').style.display = 'none';
+      overlay.classList.add('show');
+      window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+    }, 800);
+    return;
+  }
+  if (tries >= MAX_TRIES) {
+    gameRunning = false;
+    setTimeout(() => {
+      document.getElementById('overlayTitle').textContent = '아쉬워요! 😅';
+      document.getElementById('overlayMsg').textContent = `${score}/2 성공했어요. 다시 해볼까요?`;
+      overlay.classList.add('show');
+    }, 600);
+    return;
+  }
+  setTimeout(startRound, 1000);
+}
+
+document.getElementById('overlayBtn').addEventListener('click', () => {
+  score = 0; tries = 0;
+  scoreNum.textContent = 0;
+  tryNum.textContent = MAX_TRIES;
+  gameRunning = true;
+  overlay.classList.remove('show');
+  document.getElementById('overlayBtn').style.display = 'block';
+  startRound();
+});
+
+startRound();
+</script>
+</body>
+</html>

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>자비의 빛 — 최종 클라이맥스</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Segoe UI', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 24px;
+  }
+  h1 { font-size: 1.3rem; text-align: center; }
+  .subtitle { font-size: 0.82rem; color: #aaa; text-align: center; }
+  .mirror-frame {
+    position: relative;
+    width: min(240px, 64vw);
+    aspect-ratio: 2/3;
+    border: 6px solid #f4c95d;
+    border-radius: 16px;
+    box-shadow: 0 0 24px rgba(244,201,93,0.4), inset 0 0 16px rgba(244,201,93,0.1);
+    background: #0d1530;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .mirror-char {
+    font-size: clamp(3rem,12vw,5rem);
+    transition: transform 0.4s;
+    z-index: 2;
+    position: relative;
+  }
+  .mirror-glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, rgba(244,201,93,0), rgba(244,201,93,0));
+    transition: background 0s;
+    z-index: 1;
+  }
+  .mirror-glow.filling {
+    animation: fillGold 2s ease forwards;
+  }
+  @keyframes fillGold {
+    0%   { background: radial-gradient(circle, rgba(244,201,93,0) 0%, transparent 100%); }
+    40%  { background: radial-gradient(circle, rgba(244,201,93,0.5) 40%, transparent 80%); }
+    100% { background: radial-gradient(circle, rgba(244,201,93,0.85) 0%, rgba(244,201,93,0.4) 60%, transparent 100%); }
+  }
+  .corner-deco {
+    position: absolute;
+    font-size: 1.1rem;
+  }
+  .corner-deco.tl { top: 6px; left: 8px; }
+  .corner-deco.tr { top: 6px; right: 8px; }
+  .corner-deco.bl { bottom: 6px; left: 8px; }
+  .corner-deco.br { bottom: 6px; right: 8px; }
+  .input-area {
+    width: 100%;
+    max-width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .input-label { font-size: 0.85rem; color: #aaa; text-align: center; }
+  textarea {
+    width: 100%;
+    height: 64px;
+    border-radius: 10px;
+    border: 2px solid #f4c95d;
+    background: #12183a;
+    color: #fff;
+    font-size: 1rem;
+    padding: 10px 12px;
+    resize: none;
+    outline: none;
+    touch-action: auto;
+    font-family: inherit;
+    text-align: center;
+  }
+  .btn-send {
+    padding: 13px 28px;
+    background: linear-gradient(135deg, #f4c95d, #e67e22);
+    color: #0a0e27;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.05rem;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: auto;
+    align-self: center;
+    box-shadow: 0 4px 16px rgba(244,201,93,0.4);
+  }
+  .btn-send:active { opacity: 0.85; }
+  /* flying text into mirror */
+  .text-fly {
+    position: fixed;
+    pointer-events: none;
+    z-index: 50;
+    font-size: 1.1rem;
+    color: #f4c95d;
+    font-weight: bold;
+    text-align: center;
+    max-width: 200px;
+    text-shadow: 0 0 12px #f4c95d;
+  }
+  .text-fly.animate {
+    animation: textFlyIn 1.2s ease forwards;
+  }
+  @keyframes textFlyIn {
+    0%   { opacity:1; transform: translate(-50%,-50%) scale(1); }
+    60%  { opacity:1; transform: translate(-50%,-50%) scale(0.5); }
+    100% { opacity:0; transform: translate(-50%,-50%) scale(0.1); }
+  }
+  /* particles */
+  .particle {
+    position: fixed;
+    pointer-events: none;
+    font-size: 1.2rem;
+    z-index: 60;
+    animation: pFly 1.2s ease forwards;
+  }
+  @keyframes pFly {
+    0%   { opacity:1; transform: translate(0,0) scale(1); }
+    100% { opacity:0; transform: translate(var(--tx),var(--ty)) scale(0.2); }
+  }
+  .success-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(10,14,39,0.93);
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    gap: 14px;
+  }
+  .success-overlay.show { display: flex; }
+  .success-msg { font-size: 1.3rem; color: #f4c95d; text-align: center; line-height: 1.6; }
+  .btn-retry {
+    padding: 12px 28px;
+    background: #f4c95d;
+    color: #0a0e27;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: auto;
+  }
+</style>
+</head>
+<body>
+<h1>✨ 자비의 빛</h1>
+<p class="subtitle">거울 속 나에게 따뜻한 말을 전해요!</p>
+<div class="mirror-frame" id="mirrorFrame">
+  <div class="mirror-glow" id="mirrorGlow"></div>
+  <span class="corner-deco tl">✦</span>
+  <span class="corner-deco tr">✦</span>
+  <span class="corner-deco bl">✦</span>
+  <span class="corner-deco br">✦</span>
+  <span class="mirror-char" id="mirrorChar">🧙</span>
+</div>
+<div class="input-area">
+  <label class="input-label">거울 속 나에게 전할 말...</label>
+  <textarea id="msgInput">오늘도 수고했어</textarea>
+  <button class="btn-send" id="sendBtn">✨ 거울에 전하기</button>
+</div>
+<div class="success-overlay" id="successOverlay">
+  <div style="font-size:3rem;">🪞</div>
+  <div class="success-msg">수고했어, 나! ✨<br>스테이지 8 클리어!</div>
+  <button class="btn-retry" onclick="resetGame()">다시 도전! 💪</button>
+</div>
+<script>
+  let completed = false;
+
+  function sendMessage() {
+    if (completed) return;
+    const txt = document.getElementById('msgInput').value.trim();
+    if (!txt) { alert('메시지를 입력해주세요!'); return; }
+    completed = true;
+
+    // Get mirror center
+    const mf = document.getElementById('mirrorFrame').getBoundingClientRect();
+    const mx = mf.left + mf.width/2;
+    const my = mf.top + mf.height/2;
+
+    // Fly text to mirror
+    const fly = document.createElement('div');
+    fly.className = 'text-fly';
+    fly.textContent = txt;
+    fly.style.cssText = `left:50%;top:70%;transform:translate(-50%,-50%);`;
+    document.body.appendChild(fly);
+    void fly.offsetWidth;
+    fly.classList.add('animate');
+    fly.style.setProperty('--tx', `${mx - window.innerWidth/2}px`);
+    fly.style.setProperty('--ty', `${my - window.innerHeight*0.7}px`);
+
+    // Mirror glow
+    setTimeout(() => {
+      document.getElementById('mirrorGlow').classList.add('filling');
+      document.getElementById('mirrorChar').style.transform = 'scale(1.2)';
+      spawnParticles(mx, my);
+    }, 900);
+
+    // Char smile
+    setTimeout(() => {
+      document.getElementById('mirrorChar').textContent = '🥰';
+    }, 1400);
+
+    // Success
+    setTimeout(() => {
+      fly.remove();
+      document.getElementById('successOverlay').classList.add('show');
+      window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+    }, 2400);
+  }
+
+  function spawnParticles(cx, cy) {
+    const emojis = ['✨','⭐','💫','🌟','💛','🔆'];
+    for (let i=0;i<18;i++) {
+      const el = document.createElement('div');
+      el.className = 'particle';
+      el.textContent = emojis[i%emojis.length];
+      const angle = (i/18)*Math.PI*2;
+      const r = 80 + Math.random()*80;
+      el.style.cssText = `left:${cx}px;top:${cy}px;--tx:${Math.cos(angle)*r}px;--ty:${Math.sin(angle)*r-20}px;`;
+      document.body.appendChild(el);
+      setTimeout(()=>el.remove(),1300);
+    }
+  }
+
+  function resetGame() {
+    completed = false;
+    document.getElementById('mirrorChar').textContent = '🧙';
+    document.getElementById('mirrorChar').style.transform = '';
+    document.getElementById('mirrorGlow').classList.remove('filling');
+    document.getElementById('successOverlay').classList.remove('show');
+  }
+
+  const btn = document.getElementById('sendBtn');
+  btn.addEventListener('click', sendMessage);
+  btn.addEventListener('touchend', e => { e.preventDefault(); sendMessage(); }, {passive:false});
+</script>
+</body>
+</html>

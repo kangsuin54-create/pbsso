@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>선물 같은 휴식</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Segoe UI', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 20px;
+  }
+  h1 { font-size: 1.3rem; text-align: center; }
+  .subtitle { font-size: 0.82rem; color: #aaa; text-align: center; }
+  .game-area {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 360px;
+    gap: 10px;
+  }
+  .char-side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 80px;
+  }
+  .char-emoji { font-size: 3.5rem; transition: all 0.4s; }
+  .char-label { font-size: 0.75rem; color: #aaa; }
+  .items-side {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+    flex: 1;
+  }
+  .item-chip {
+    padding: 10px 18px;
+    background: #12183a;
+    border: 2px solid #f4c95d;
+    border-radius: 20px;
+    font-size: 1.3rem;
+    cursor: grab;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 2px 8px rgba(244,201,93,0.25);
+    position: relative;
+    z-index: 10;
+  }
+  .item-chip.dragging { cursor: grabbing; box-shadow: 0 6px 20px rgba(244,201,93,0.6); }
+  .item-chip.used { opacity: 0.3; pointer-events: none; }
+  .drop-target {
+    width: 90px; height: 90px;
+    border-radius: 50%;
+    border: 3px dashed #f4c95d55;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem;
+    animation: pulse 1.4s ease infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse {
+    0%,100% { border-color: #f4c95d44; }
+    50% { border-color: #f4c95daa; }
+  }
+  .drop-target.lit { background: rgba(244,201,93,0.15); border-style: solid; border-color: #f4c95d; }
+  .hint { font-size: 0.78rem; color: #888; text-align: center; }
+  /* floating dragged clone */
+  .drag-clone {
+    position: fixed;
+    pointer-events: none;
+    font-size: 1.5rem;
+    z-index: 100;
+    transform: translate(-50%,-50%);
+  }
+  .success-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(10,14,39,0.93);
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 200;
+    gap: 16px;
+  }
+  .success-overlay.show { display: flex; }
+  .success-msg { font-size: 1.4rem; color: #f4c95d; text-align: center; }
+  .btn-retry {
+    padding: 12px 28px;
+    background: #f4c95d;
+    color: #0a0e27;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: auto;
+  }
+  .glow-flash {
+    position: fixed; inset: 0;
+    background: radial-gradient(circle, rgba(255,220,100,0.3), transparent 60%);
+    pointer-events: none;
+    z-index: 150;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+  .glow-flash.show { opacity: 1; }
+</style>
+</head>
+<body>
+<h1>☕ 선물 같은 휴식</h1>
+<p class="subtitle">아이템을 드래그해서 친구에게 전달해요!</p>
+<div class="game-area">
+  <div class="items-side" id="itemsSide">
+    <div class="item-chip" data-item="coffee" id="item_coffee">☕</div>
+    <div class="item-chip" data-item="pillow" id="item_pillow">🛋️</div>
+    <div class="item-chip" data-item="moon"   id="item_moon">🌙</div>
+  </div>
+  <div class="drop-target" id="dropTarget">
+    <span id="dropEmoji">🫳</span>
+  </div>
+  <div class="char-side">
+    <div class="char-emoji" id="charEmoji">😪</div>
+    <div class="char-label">피곤한 친구</div>
+  </div>
+</div>
+<p class="hint">아이템을 오른쪽으로 드래그하세요!</p>
+<div class="glow-flash" id="glowFlash"></div>
+<div class="success-overlay" id="successOverlay">
+  <div style="font-size:3rem;">☕</div>
+  <div class="success-msg">나를 위한 선물이에요 ☕<br>편안한 쉼이 되었어요!</div>
+  <button class="btn-retry" onclick="resetGame()">다시 도전! 💪</button>
+</div>
+<script>
+  let draggingItem = null, clone = null, delivered = 0, completed = false;
+
+  function createClone(text, x, y) {
+    const el = document.createElement('div');
+    el.className = 'drag-clone';
+    el.textContent = text;
+    el.style.left = x+'px'; el.style.top = y+'px';
+    document.body.appendChild(el);
+    return el;
+  }
+
+  function getDropRect() {
+    return document.getElementById('dropTarget').getBoundingClientRect();
+  }
+
+  function onStart(e, chipEl) {
+    if (completed || chipEl.classList.contains('used')) return;
+    const pos = e.touches ? e.touches[0] : e;
+    draggingItem = chipEl;
+    clone = createClone(chipEl.textContent.trim(), pos.clientX, pos.clientY);
+    chipEl.style.opacity = '0.4';
+  }
+  function onMove(e) {
+    if (!draggingItem || !clone) return;
+    e.preventDefault();
+    const pos = e.touches ? e.touches[0] : e;
+    clone.style.left = pos.clientX+'px';
+    clone.style.top  = pos.clientY+'px';
+    // highlight drop target
+    const dr = getDropRect();
+    const over = pos.clientX>=dr.left&&pos.clientX<=dr.right&&pos.clientY>=dr.top&&pos.clientY<=dr.bottom;
+    document.getElementById('dropTarget').classList.toggle('lit', over);
+  }
+  function onEnd(e) {
+    if (!draggingItem || !clone) return;
+    const pos = e.changedTouches ? e.changedTouches[0] : e;
+    const dr = getDropRect();
+    const over = pos.clientX>=dr.left&&pos.clientX<=dr.right&&pos.clientY>=dr.top&&pos.clientY<=dr.bottom;
+    clone.remove(); clone = null;
+    draggingItem.style.opacity = '';
+    document.getElementById('dropTarget').classList.remove('lit');
+    if (over) {
+      delivered++;
+      draggingItem.classList.add('used');
+      // glow
+      const gf = document.getElementById('glowFlash');
+      gf.classList.add('show');
+      setTimeout(()=>gf.classList.remove('show'),600);
+      document.getElementById('charEmoji').textContent = '😊';
+      document.getElementById('dropEmoji').textContent = draggingItem.textContent.trim();
+      if (!completed) {
+        completed = true;
+        setTimeout(() => {
+          document.getElementById('successOverlay').classList.add('show');
+          window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+        }, 700);
+      }
+    }
+    draggingItem = null;
+  }
+
+  document.querySelectorAll('.item-chip').forEach(chip => {
+    chip.addEventListener('mousedown', e => { e.preventDefault(); onStart(e, chip); });
+    chip.addEventListener('touchstart', e => { onStart(e, chip); }, {passive:true});
+  });
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup',   onEnd);
+  window.addEventListener('touchmove', onMove, {passive:false});
+  window.addEventListener('touchend',  onEnd);
+
+  function resetGame() {
+    delivered=0; completed=false;
+    document.querySelectorAll('.item-chip').forEach(c=>{ c.classList.remove('used'); c.style.opacity=''; });
+    document.getElementById('charEmoji').textContent='😪';
+    document.getElementById('dropEmoji').textContent='🫳';
+    document.getElementById('glowFlash').classList.remove('show');
+    document.getElementById('successOverlay').classList.remove('show');
+  }
+</script>
+</body>
+</html>

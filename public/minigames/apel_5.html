@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>순서의 열쇠</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Arial', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    user-select: none;
+  }
+  h1 { font-size: 20px; color: #f4c95d; margin-bottom: 4px; }
+  #subtitle { font-size: 12px; color: #aaa; margin-bottom: 8px; }
+  #hint { font-size: 11px; color: #f4c95d; margin-bottom: 20px; }
+  #cards-container {
+    display: flex; flex-direction: column; gap: 14px;
+    width: 280px; margin-bottom: 20px;
+  }
+  .card {
+    height: 64px;
+    background: #1a2040;
+    border: 2px solid #2a3060;
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: #eee; font-weight: bold;
+    cursor: grab;
+    transition: transform 0.15s, border-color 0.3s, background 0.3s;
+    position: relative;
+    touch-action: none;
+  }
+  .card:active { cursor: grabbing; transform: scale(1.04); }
+  .card.dragging { opacity: 0.4; border-color: #f4c95d; }
+  .card.over { border-color: #f4c95d; background: #0d1a3a; }
+  .card.correct { border-color: #66bb6a; background: #1b5e20; animation: connectAnim 0.5s ease; }
+  @keyframes connectAnim {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+  }
+  #num-label {
+    position: absolute; left: 14px;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: rgba(244,201,93,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: #f4c95d; font-weight: bold;
+  }
+  #check-btn {
+    padding: 14px 44px; font-size: 17px; font-weight: bold;
+    background: linear-gradient(135deg, #f4c95d, #ff9800);
+    color: #0a0e27; border: none; border-radius: 28px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(244,201,93,0.4);
+  }
+  #check-btn:active { transform: scale(0.94); }
+  #feedback { font-size: 15px; margin-top: 14px; min-height: 22px; text-align: center; }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10,14,39,0.92);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 26px; color: #f4c95d; margin-bottom: 16px; }
+  #overlay p { font-size: 14px; color: #ccc; margin-bottom: 24px; }
+  .btn {
+    background: #f4c95d; color: #0a0e27;
+    border: none; border-radius: 24px;
+    padding: 12px 32px; font-size: 16px; font-weight: bold;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<h1>🔑 순서의 열쇠</h1>
+<div id="subtitle">카드를 올바른 순서로 배열하세요!</div>
+<div id="hint">정답 순서: 기다리기 → 확인하기 → 실행하기</div>
+<div id="cards-container"></div>
+<button id="check-btn" ontouchstart="checkOrder(event)" onmousedown="checkOrder(event)">✅ 확인!</button>
+<div id="feedback"></div>
+
+<div id="overlay">
+  <h2 id="overlayTitle"></h2>
+  <p id="overlayMsg"></p>
+  <button class="btn" id="overlayBtn">다시 도전! 💪</button>
+</div>
+
+<script>
+const CORRECT_ORDER = ['기다리기', '확인하기', '실행하기'];
+const ICONS = ['⏳', '🔍', '🚀'];
+let cardOrder = ['실행하기', '기다리기', '확인하기'];
+let draggingIndex = null;
+let overIndex = null;
+
+const container = document.getElementById('cards-container');
+const feedbackEl = document.getElementById('feedback');
+const overlay = document.getElementById('overlay');
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function renderCards() {
+  container.innerHTML = '';
+  cardOrder.forEach((label, i) => {
+    const iconIndex = CORRECT_ORDER.indexOf(label);
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.dataset.index = i;
+    card.innerHTML = `<div class="num-label">${i + 1}</div>${ICONS[iconIndex]} ${label}`;
+
+    card.addEventListener('touchstart', e => startDrag(e, i), { passive: false });
+    card.addEventListener('touchmove', e => moveDrag(e), { passive: false });
+    card.addEventListener('touchend', e => endDrag(e), { passive: false });
+    card.addEventListener('mousedown', e => startDrag(e, i));
+    container.appendChild(card);
+  });
+}
+
+let startY = 0;
+let currentY = 0;
+
+function startDrag(e, index) {
+  e.preventDefault();
+  draggingIndex = index;
+  const t = e.touches ? e.touches[0] : e;
+  startY = t.clientY;
+  currentY = t.clientY;
+  getCards()[index].classList.add('dragging');
+}
+
+function moveDrag(e) {
+  e.preventDefault();
+  if (draggingIndex === null) return;
+  const t = e.touches ? e.touches[0] : e;
+  currentY = t.clientY;
+
+  // find over card
+  const cards = getCards();
+  let newOver = null;
+  cards.forEach((c, i) => {
+    if (i === draggingIndex) return;
+    const rect = c.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    if (Math.abs(currentY - midY) < rect.height / 2 + 10) {
+      newOver = i;
+    }
+  });
+
+  if (newOver !== overIndex) {
+    if (overIndex !== null) cards[overIndex]?.classList.remove('over');
+    overIndex = newOver;
+    if (overIndex !== null) cards[overIndex]?.classList.add('over');
+  }
+}
+
+function endDrag(e) {
+  e.preventDefault();
+  if (draggingIndex === null) return;
+  const cards = getCards();
+  cards[draggingIndex]?.classList.remove('dragging');
+  if (overIndex !== null) {
+    cards[overIndex]?.classList.remove('over');
+    // swap
+    const newOrder = [...cardOrder];
+    [newOrder[draggingIndex], newOrder[overIndex]] = [newOrder[overIndex], newOrder[draggingIndex]];
+    cardOrder = newOrder;
+    renderCards();
+  }
+  draggingIndex = null;
+  overIndex = null;
+}
+
+function getCards() {
+  return Array.from(container.querySelectorAll('.card'));
+}
+
+function checkOrder(e) {
+  e.preventDefault();
+  const isCorrect = cardOrder.every((label, i) => label === CORRECT_ORDER[i]);
+  if (isCorrect) {
+    feedbackEl.textContent = '✅ 완벽한 순서!';
+    getCards().forEach(c => c.classList.add('correct'));
+    setTimeout(() => {
+      document.getElementById('overlayTitle').textContent = '순서 완성! 🔑';
+      document.getElementById('overlayMsg').textContent = '올바른 순서로 배열했어요!';
+      document.getElementById('overlayBtn').style.display = 'none';
+      overlay.classList.add('show');
+      window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+    }, 800);
+  } else {
+    feedbackEl.textContent = '❌ 순서가 다르네요! 다시 해봐요.';
+    getCards().forEach(c => {
+      c.style.borderColor = '#e53935';
+      setTimeout(() => { c.style.borderColor = ''; }, 600);
+    });
+  }
+}
+
+document.getElementById('overlayBtn').addEventListener('click', () => {
+  cardOrder = shuffle(CORRECT_ORDER);
+  feedbackEl.textContent = '';
+  overlay.classList.remove('show');
+  document.getElementById('overlayBtn').style.display = 'block';
+  renderCards();
+});
+
+cardOrder = shuffle(CORRECT_ORDER);
+renderCards();
+</script>
+</body>
+</html>

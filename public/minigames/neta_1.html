@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>친절한 목소리</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Segoe UI', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 24px;
+    user-select: none;
+  }
+  h1 { font-size: 1.4rem; text-align: center; }
+  .subtitle { font-size: 0.85rem; color: #aaa; text-align: center; }
+  .card-stack {
+    position: relative;
+    width: 100%;
+    max-width: 300px;
+    height: 120px;
+  }
+  .card {
+    position: absolute;
+    inset: 0;
+    background: #1a1040;
+    border: 2px solid #8855cc;
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+    color: #ccc;
+    text-align: center;
+    padding: 20px;
+    cursor: grab;
+    transition: box-shadow 0.15s;
+    touch-action: none;
+    will-change: transform, opacity;
+  }
+  .card:active { cursor: grabbing; box-shadow: 0 8px 24px rgba(136,85,204,0.5); }
+  .hint-arrow { font-size: 0.82rem; color: #888; text-align: center; }
+  .remaining { font-size: 0.9rem; color: #aaa; }
+  .success-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(10,14,39,0.93);
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    gap: 16px;
+  }
+  .success-overlay.show { display: flex; }
+  .success-msg { font-size: 1.3rem; color: #f4c95d; text-align: center; }
+  .btn-retry {
+    padding: 12px 28px;
+    background: #f4c95d;
+    color: #0a0e27;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: auto;
+  }
+</style>
+</head>
+<body>
+<h1>💨 친절한 목소리</h1>
+<p class="subtitle">자책하는 말들을 스와이프해서 날려버려요!</p>
+<div class="remaining" id="remaining">남은 카드: 4장</div>
+<div class="card-stack" id="cardStack"></div>
+<p class="hint-arrow">← 좌우 또는 위아래로 스와이프 →</p>
+<div class="success-overlay" id="successOverlay">
+  <div style="font-size:3rem;">💨</div>
+  <div class="success-msg">부정적인 말은 날려버려요! 💨<br>이제 마음이 가벼워요!</div>
+  <button class="btn-retry" onclick="resetGame()">다시 도전! 💪</button>
+</div>
+<script>
+  const CARDS = ['난 왜 이럴까', '내 잘못이야', '나는 못해', '실망이야'];
+  let stack = [], current = null, dismissed = 0;
+
+  let startX, startY, isDragging = false;
+
+  function initGame() {
+    dismissed = 0;
+    stack = [...CARDS];
+    document.getElementById('remaining').textContent = `남은 카드: ${stack.length}장`;
+    document.getElementById('successOverlay').classList.remove('show');
+    renderCard();
+  }
+
+  function renderCard() {
+    const container = document.getElementById('cardStack');
+    container.innerHTML = '';
+    if (stack.length === 0) return;
+    // render top card
+    const text = stack[stack.length-1];
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.textContent = '"' + text + '"';
+    container.appendChild(card);
+    current = card;
+    attachDrag(card);
+    // shadow cards
+    for (let i=Math.min(2, stack.length-2);i>=0;i--) {
+      const shadow = document.createElement('div');
+      shadow.className = 'card';
+      shadow.style.cssText = `transform:translate(${(i-1)*6}px,${(i-1)*6}px);z-index:${i};opacity:${0.4+i*0.15};`;
+      shadow.textContent = '"' + stack[stack.length-2-i] + '"';
+      container.insertBefore(shadow, card);
+    }
+  }
+
+  function attachDrag(card) {
+    let sx, sy, dx, dy;
+
+    function onStart(cx, cy) {
+      isDragging = true;
+      sx = cx; sy = cy; dx=0; dy=0;
+    }
+    function onMove(cx, cy) {
+      if (!isDragging) return;
+      dx = cx-sx; dy = cy-sy;
+      const rot = dx*0.08;
+      card.style.transform = `translate(${dx}px,${dy}px) rotate(${rot}deg)`;
+      card.style.opacity = String(1 - Math.min(Math.abs(dx)+Math.abs(dy), 160)/160*0.4);
+    }
+    function onEnd() {
+      if (!isDragging) return;
+      isDragging = false;
+      if (Math.abs(dx) > 80 || Math.abs(dy) > 80) {
+        dismissCard(card, dx, dy);
+      } else {
+        card.style.transition = 'transform 0.3s, opacity 0.3s';
+        card.style.transform = '';
+        card.style.opacity = '1';
+        setTimeout(() => { if(card.style) card.style.transition=''; }, 350);
+      }
+    }
+
+    card.addEventListener('mousedown', e => { onStart(e.clientX,e.clientY); e.preventDefault(); });
+    window.addEventListener('mousemove', e => onMove(e.clientX,e.clientY));
+    window.addEventListener('mouseup', onEnd);
+    card.addEventListener('touchstart', e => { onStart(e.touches[0].clientX,e.touches[0].clientY); }, {passive:true});
+    card.addEventListener('touchmove', e => { e.preventDefault(); onMove(e.touches[0].clientX,e.touches[0].clientY); }, {passive:false});
+    card.addEventListener('touchend', onEnd);
+  }
+
+  function dismissCard(card, dx, dy) {
+    const tx = dx > 0 ? '150vw' : dx < -50 ? '-150vw' : dx > 0 ? '150vw' : '0';
+    const ty = dy < -50 ? '-150vh' : dy > 50 ? '150vh' : '0';
+    card.style.transition = 'transform 0.5s ease, opacity 0.5s';
+    card.style.transform = `translate(${tx},${ty}) rotate(${dx*0.2}deg)`;
+    card.style.opacity = '0';
+    setTimeout(() => {
+      stack.pop();
+      dismissed++;
+      document.getElementById('remaining').textContent = `남은 카드: ${stack.length}장`;
+      if (stack.length === 0) {
+        setTimeout(() => {
+          document.getElementById('successOverlay').classList.add('show');
+          window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+        }, 200);
+      } else {
+        renderCard();
+      }
+    }, 500);
+  }
+
+  function resetGame() { initGame(); }
+  initGame();
+</script>
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>마음 온도계</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Arial', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    user-select: none;
+    transition: background 0.5s;
+  }
+  h1 { font-size: 20px; color: #f4c95d; margin-bottom: 4px; }
+  #subtitle { font-size: 12px; color: #aaa; margin-bottom: 20px; }
+  #main-area {
+    display: flex; align-items: center; gap: 28px; margin-bottom: 20px;
+  }
+  #thermometer-wrap {
+    display: flex; flex-direction: column; align-items: center;
+    width: 60px;
+  }
+  #thermo-label { font-size: 12px; color: #aaa; margin-bottom: 6px; }
+  #thermo {
+    width: 32px; height: 200px;
+    background: #1a2040;
+    border-radius: 16px 16px 0 0;
+    border: 2px solid #2a3060;
+    position: relative;
+    overflow: hidden;
+  }
+  #thermo-fill {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: #e53935;
+    border-radius: 0 0 14px 14px;
+    transition: height 0.3s ease, background 0.5s;
+  }
+  #thermo-bulb {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: #e53935;
+    border: 2px solid #2a3060;
+    margin-top: -4px;
+    transition: background 0.5s;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: bold; color: #fff;
+  }
+  .zone-marker {
+    position: absolute; left: -30px;
+    font-size: 9px; color: #aaa;
+  }
+  #safe-zone {
+    position: absolute;
+    left: -2px; right: -2px;
+    background: rgba(102,187,106,0.15);
+    border-top: 1px dashed #66bb6a;
+    border-bottom: 1px dashed #66bb6a;
+  }
+  #info-panel {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  #temp-display {
+    font-size: 42px; font-weight: bold; color: #f4c95d;
+    min-width: 80px; text-align: center;
+  }
+  #temp-status { font-size: 15px; min-height: 22px; text-align: center; }
+  #timer-display {
+    font-size: 13px; color: #aaa;
+  }
+  #fan-btn {
+    width: 100px; height: 100px; border-radius: 50%;
+    background: radial-gradient(circle, #4fc3f7, #0277bd);
+    border: none; font-size: 28px;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(79,195,247,0.4);
+    margin-top: 14px;
+    transition: transform 0.1s;
+  }
+  #fan-btn:active { transform: scale(0.88) rotate(30deg); }
+  #zone-label { font-size: 12px; color: #66bb6a; margin-top: 4px; }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10,14,39,0.92);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 26px; color: #f4c95d; margin-bottom: 16px; text-align: center; }
+  #overlay p { font-size: 14px; color: #ccc; margin-bottom: 24px; }
+  .btn {
+    background: #f4c95d; color: #0a0e27;
+    border: none; border-radius: 24px;
+    padding: 12px 32px; font-size: 16px; font-weight: bold;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<h1>🌡️ 마음 온도계</h1>
+<div id="subtitle">온도를 40~70 사이로 10초간 유지!</div>
+<div id="main-area">
+  <div id="thermometer-wrap">
+    <div id="thermo-label">온도</div>
+    <div id="thermo">
+      <div id="safe-zone"></div>
+      <div id="thermo-fill"></div>
+    </div>
+    <div id="thermo-bulb">70</div>
+  </div>
+  <div id="info-panel">
+    <div id="temp-display">70</div>
+    <div id="temp-status">🌡️ 온도를 낮춰요!</div>
+    <div id="timer-display">유지 시간: <span id="holdTime">0.0</span>s / 10s</div>
+    <div id="zone-label">40~70 = 안전 구간 🟢</div>
+  </div>
+</div>
+<button id="fan-btn" ontouchstart="fanTap(event)" onmousedown="fanTap(event)">🌬️</button>
+
+<div id="overlay">
+  <h2 id="overlayTitle"></h2>
+  <p id="overlayMsg"></p>
+  <button class="btn" id="overlayBtn">다시 도전! 💪</button>
+</div>
+
+<script>
+let temp = 70;
+let holdTime = 0;
+let gameRunning = true;
+let lastTs = 0;
+let animId;
+const RISE_RATE = 5; // per second
+const COOL = 10;
+const SAFE_MIN = 40, SAFE_MAX = 70;
+const NEEDED = 10;
+const overlay = document.getElementById('overlay');
+const tempDisplay = document.getElementById('temp-display');
+const tempStatus = document.getElementById('temp-status');
+const holdTimeEl = document.getElementById('holdTime');
+const thermoFill = document.getElementById('thermo-fill');
+const thermoBulb = document.getElementById('thermo-bulb');
+const safeZoneEl = document.getElementById('safe-zone');
+const thermoH = 200;
+
+function setThermo() {
+  const h = Math.min(100, Math.max(0, temp));
+  thermoFill.style.height = (h / 100 * thermoH) + 'px';
+  thermoBulb.textContent = Math.round(temp);
+
+  const color = temp < SAFE_MIN ? '#4fc3f7' : temp > SAFE_MAX ? '#e53935' : '#66bb6a';
+  thermoFill.style.background = color;
+  thermoBulb.style.background = color;
+
+  const bgR = temp > SAFE_MAX ? Math.min(40, (temp - SAFE_MAX)) : 0;
+  document.body.style.background = `rgb(${10 + bgR}, 14, 39)`;
+}
+
+function setSafeZone() {
+  const minH = (SAFE_MIN / 100) * thermoH;
+  const maxH = (SAFE_MAX / 100) * thermoH;
+  safeZoneEl.style.bottom = minH + 'px';
+  safeZoneEl.style.height = (maxH - minH) + 'px';
+}
+
+function fanTap(e) {
+  e.preventDefault();
+  if (!gameRunning) return;
+  temp = Math.max(0, temp - COOL);
+}
+
+function gameLoop(ts) {
+  if (!gameRunning) return;
+  const dt = lastTs ? (ts - lastTs) / 1000 : 0.016;
+  lastTs = ts;
+
+  temp += RISE_RATE * dt;
+  if (temp > 100) temp = 100;
+
+  const inSafe = temp >= SAFE_MIN && temp <= SAFE_MAX;
+  if (inSafe) {
+    holdTime += dt;
+    holdTimeEl.textContent = holdTime.toFixed(1);
+    tempStatus.textContent = '🟢 잘 유지하고 있어요!';
+  } else {
+    holdTime = 0;
+    holdTimeEl.textContent = '0.0';
+    if (temp > SAFE_MAX) tempStatus.textContent = temp > 80 ? '🔴 위험! 부채질하세요!' : '⚠️ 너무 높아요!';
+    else tempStatus.textContent = '🔵 너무 낮아요! 잠깐 기다려요';
+  }
+
+  tempDisplay.textContent = Math.round(temp);
+  setThermo();
+
+  if (holdTime >= NEEDED) {
+    gameRunning = false;
+    cancelAnimationFrame(animId);
+    setTimeout(() => {
+      document.getElementById('overlayTitle').textContent = '완벽한 조절! 🌡️';
+      document.getElementById('overlayMsg').textContent = '10초간 마음 온도를 유지했어요!';
+      document.getElementById('overlayBtn').style.display = 'none';
+      overlay.classList.add('show');
+      window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+    }, 600);
+    return;
+  }
+
+  animId = requestAnimationFrame(gameLoop);
+}
+
+document.getElementById('overlayBtn').addEventListener('click', () => {
+  temp = 70; holdTime = 0; lastTs = 0;
+  gameRunning = true;
+  tempDisplay.textContent = 70;
+  holdTimeEl.textContent = '0.0';
+  document.body.style.background = '#0a0e27';
+  overlay.classList.remove('show');
+  document.getElementById('overlayBtn').style.display = 'block';
+  animId = requestAnimationFrame(gameLoop);
+});
+
+setSafeZone();
+animId = requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>

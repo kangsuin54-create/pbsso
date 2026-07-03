@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>무지개 대화법</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Arial', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    user-select: none;
+  }
+  h1 { font-size: 20px; color: #f4c95d; margin-bottom: 4px; }
+  #subtitle { font-size: 12px; color: #aaa; margin-bottom: 16px; }
+  #round-display { font-size: 13px; color: #aaa; margin-bottom: 12px; }
+  #harsh-bubble {
+    background: linear-gradient(135deg, #4a0000, #7f0000);
+    border: 2px solid #e53935;
+    border-radius: 16px;
+    padding: 14px 20px;
+    font-size: 22px; color: #fff; font-weight: bold;
+    text-align: center; max-width: 280px;
+    margin-bottom: 6px;
+    position: relative;
+    animation: harshShake 0.5s ease;
+  }
+  @keyframes harshShake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-5px); }
+    80% { transform: translateX(5px); }
+  }
+  #harsh-label { font-size: 11px; color: #e53935; margin-bottom: 16px; }
+  #choices { display: flex; flex-direction: column; gap: 10px; width: 300px; margin-bottom: 14px; }
+  .choice-btn {
+    padding: 13px 12px; font-size: 13px;
+    background: #1a2040;
+    color: #eee;
+    border: 2px solid #2a3060;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left; line-height: 1.4;
+  }
+  .choice-btn:active { transform: scale(0.97); }
+  .choice-btn.correct { background: #1b5e20; border-color: #66bb6a; color: #fff; }
+  .choice-btn.wrong { background: #7f0000; border-color: #e53935; color: #fff; }
+  #score-display { font-size: 14px; color: #aaa; }
+  #transform-anim {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none; z-index: 50;
+    opacity: 0; transition: opacity 0.3s;
+  }
+  #transform-anim.show { opacity: 1; }
+  #transform-bubble {
+    background: linear-gradient(135deg, #1b5e20, #2e7d32);
+    border: 3px solid #66bb6a;
+    border-radius: 24px;
+    padding: 18px 28px;
+    font-size: 18px; color: #fff; font-weight: bold;
+    text-align: center; max-width: 280px;
+    box-shadow: 0 0 30px rgba(102,187,106,0.5);
+  }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10,14,39,0.92);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 26px; color: #f4c95d; margin-bottom: 16px; text-align: center; }
+  #overlay p { font-size: 14px; color: #ccc; margin-bottom: 24px; }
+  .btn {
+    background: #f4c95d; color: #0a0e27;
+    border: none; border-radius: 24px;
+    padding: 12px 32px; font-size: 16px; font-weight: bold;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<h1>🌈 무지개 대화법</h1>
+<div id="subtitle">거친 말을 부드럽게 바꿔요!</div>
+<div id="round-display">라운드 <span id="roundNum">1</span> / 3</div>
+<div id="harsh-bubble" id="harshBubble">짜증나!</div>
+<div id="harsh-label">⚠️ 거친 말</div>
+<div id="choices"></div>
+<div id="score-display">정답: <span id="scoreNum">0</span> / 3</div>
+
+<div id="transform-anim" id="transformAnim">
+  <div id="transform-bubble" id="transformBubble"></div>
+</div>
+
+<div id="overlay">
+  <h2 id="overlayTitle"></h2>
+  <p id="overlayMsg"></p>
+  <button class="btn" id="overlayBtn">다시 도전! 💪</button>
+</div>
+
+<script>
+const rounds = [
+  {
+    harsh: '짜증나! 😤',
+    choices: [
+      '나는 지금 많이 힘들어서 속상해.',
+      '야, 진짜 짜증나! 왜 이래?',
+      '몰라, 됐어.',
+    ],
+    answer: 0,
+    soft: '나는 지금 많이 힘들어서 속상해. 💛',
+  },
+  {
+    harsh: '다 싫어! 😡',
+    choices: [
+      '어차피 다 내 탓이잖아.',
+      '나는 지금 모든 게 부담스럽고 지쳐있어.',
+      '그냥 나 좀 내버려 둬!',
+    ],
+    answer: 1,
+    soft: '나는 지금 모든 게 부담스럽고 지쳐있어. 🌸',
+  },
+  {
+    harsh: '왜 나한테? 😬',
+    choices: [
+      '왜 항상 나만 이런 일이 생겨?',
+      '나만 왜 이래? 진짜!',
+      '내가 지금 억울하고 당황스러워서 이해가 필요해.',
+    ],
+    answer: 2,
+    soft: '내가 지금 억울하고 당황스러워서 이해가 필요해. 💙',
+  },
+];
+
+let currentRound = 0;
+let score = 0;
+let locked = false;
+const harshBubble = document.getElementById('harsh-bubble');
+const choicesEl = document.getElementById('choices');
+const roundNumEl = document.getElementById('roundNum');
+const scoreNumEl = document.getElementById('scoreNum');
+const overlay = document.getElementById('overlay');
+const transformAnim = document.getElementById('transform-anim');
+const transformBubble = document.getElementById('transform-bubble');
+
+function renderRound() {
+  const r = rounds[currentRound];
+  harshBubble.textContent = r.harsh;
+  harshBubble.style.animation = 'none';
+  void harshBubble.offsetWidth;
+  harshBubble.style.animation = '';
+  roundNumEl.textContent = currentRound + 1;
+  locked = false;
+
+  choicesEl.innerHTML = '';
+  r.choices.forEach((ch, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = ch;
+    btn.ontouchstart = (e) => { e.preventDefault(); handleChoice(i, btn, r); };
+    btn.onmousedown = () => handleChoice(i, btn, r);
+    choicesEl.appendChild(btn);
+  });
+}
+
+function handleChoice(i, btn, r) {
+  if (locked) return;
+  locked = true;
+
+  if (i === r.answer) {
+    btn.classList.add('correct');
+    score++;
+    scoreNumEl.textContent = score;
+
+    // transform animation
+    transformBubble.textContent = '🌈 ' + r.soft;
+    transformAnim.classList.add('show');
+    setTimeout(() => transformAnim.classList.remove('show'), 1200);
+  } else {
+    btn.classList.add('wrong');
+    choicesEl.querySelectorAll('.choice-btn')[r.answer].classList.add('correct');
+  }
+
+  setTimeout(() => {
+    currentRound++;
+    if (currentRound >= rounds.length) {
+      endGame();
+    } else {
+      renderRound();
+    }
+  }, 1300);
+}
+
+function endGame() {
+  if (score >= 2) {
+    document.getElementById('overlayTitle').textContent = '부드러운 말 완성! 🌈';
+    document.getElementById('overlayMsg').textContent = `${score}/3 정답! 감정을 잘 표현했어요!`;
+    document.getElementById('overlayBtn').style.display = 'none';
+    overlay.classList.add('show');
+    window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+  } else {
+    document.getElementById('overlayTitle').textContent = '아쉬워요! 😅';
+    document.getElementById('overlayMsg').textContent = `${score}/3 정답. 2개 이상 필요해요!`;
+    overlay.classList.add('show');
+  }
+}
+
+document.getElementById('overlayBtn').addEventListener('click', () => {
+  currentRound = 0; score = 0;
+  scoreNumEl.textContent = 0;
+  overlay.classList.remove('show');
+  document.getElementById('overlayBtn').style.display = 'block';
+  renderRound();
+});
+
+renderRound();
+</script>
+</body>
+</html>

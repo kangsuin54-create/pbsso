@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>도전의 발걸음</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Segoe UI', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 20px;
+  }
+  h1 { font-size: 1.4rem; text-align: center; }
+  .subtitle { font-size: 0.9rem; color: #aaa; text-align: center; }
+  .pattern-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .tile {
+    width: 64px; height: 64px;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    border: 2px solid rgba(255,255,255,0.15);
+  }
+  .arrow { font-size: 1.5rem; color: #f4c95d; }
+  .question-mark {
+    width: 64px; height: 64px;
+    border-radius: 14px;
+    border: 3px dashed #f4c95d;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem; color: #f4c95d;
+  }
+  .choices {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .choice-btn {
+    width: 70px; height: 70px;
+    border-radius: 14px;
+    border: 3px solid transparent;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    gap: 4px;
+    touch-action: auto;
+    transition: transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .choice-btn:active { transform: scale(0.93); }
+  .tries-row { font-size: 0.9rem; color: #aaa; }
+  .msg {
+    font-size: 1rem; text-align: center;
+    min-height: 1.4em;
+    color: #f4c95d;
+  }
+  .char-anim {
+    font-size: 3rem;
+    transition: transform 0.3s;
+  }
+  .char-anim.jump {
+    animation: jump 0.5s ease;
+  }
+  @keyframes jump {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-20px) scale(1.2); }
+  }
+  .success-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(10,14,39,0.93);
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    gap: 16px;
+  }
+  .success-overlay.show { display: flex; }
+  .success-msg { font-size: 1.5rem; color: #f4c95d; text-align: center; }
+  .btn-retry {
+    padding: 12px 28px;
+    background: #f4c95d;
+    color: #0a0e27;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: auto;
+  }
+</style>
+</head>
+<body>
+<h1>🎯 도전의 발걸음</h1>
+<p class="subtitle">다음에 올 색깔을 맞춰보세요!</p>
+<div class="char-anim" id="charAnim">🧙</div>
+<div class="pattern-row">
+  <div class="tile" style="background:#e74c3c;">빨강</div>
+  <div class="arrow">→</div>
+  <div class="tile" style="background:#3498db;">파랑</div>
+  <div class="arrow">→</div>
+  <div class="tile" style="background:#2ecc71;">초록</div>
+  <div class="arrow">→</div>
+  <div class="question-mark">?</div>
+</div>
+<div class="tries-row" id="triesRow">남은 기회: 2회</div>
+<div class="msg" id="msg">어떤 색이 올까요?</div>
+<div class="choices">
+  <button class="choice-btn" style="background:#e74c3c;" onclick="choose('red')">빨강</button>
+  <button class="choice-btn" style="background:#3498db;" onclick="choose('blue')">파랑</button>
+  <button class="choice-btn" style="background:#2ecc71;" onclick="choose('green')">초록</button>
+</div>
+<div class="success-overlay" id="successOverlay">
+  <div id="charBig" style="font-size:3.5rem;">🧙</div>
+  <div class="success-msg">정답! 관찰력 최고야! 🎉</div>
+  <button class="btn-retry" onclick="resetGame()">다시 도전! 💪</button>
+</div>
+<script>
+  const ANSWER = 'red';
+  let tries = 2;
+  let locked = false;
+
+  function choose(color) {
+    if (locked || tries <= 0) return;
+    if (color === ANSWER) {
+      locked = true;
+      document.getElementById('msg').textContent = '정답! 패턴을 찾았어요! 🎉';
+      const ch = document.getElementById('charAnim');
+      ch.classList.add('jump');
+      setTimeout(() => ch.classList.remove('jump'), 600);
+      setTimeout(() => {
+        document.getElementById('successOverlay').classList.add('show');
+        window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+      }, 800);
+    } else {
+      tries--;
+      document.getElementById('triesRow').textContent = `남은 기회: ${tries}회`;
+      if (tries <= 0) {
+        document.getElementById('msg').textContent = '아쉬워요! 정답은 빨강이에요. 다시 해봐요!';
+        locked = true;
+        setTimeout(() => { resetGame(); }, 2200);
+      } else {
+        document.getElementById('msg').textContent = '괜찮아! 한번 더 해봐 💪';
+      }
+    }
+  }
+
+  function resetGame() {
+    tries = 2;
+    locked = false;
+    document.getElementById('triesRow').textContent = '남은 기회: 2회';
+    document.getElementById('msg').textContent = '어떤 색이 올까요?';
+    document.getElementById('successOverlay').classList.remove('show');
+  }
+
+  document.querySelectorAll('.choice-btn').forEach(btn => {
+    btn.addEventListener('touchend', e => {
+      e.preventDefault();
+      const color = btn.getAttribute('onclick').match(/'(\w+)'/)[1];
+      choose(color);
+    });
+  });
+</script>
+</body>
+</html>

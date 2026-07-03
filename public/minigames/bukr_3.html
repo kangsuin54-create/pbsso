@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>민낯의 용기</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Segoe UI', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 24px;
+    user-select: none;
+  }
+  h1 { font-size: 1.4rem; text-align: center; }
+  .subtitle { font-size: 0.85rem; color: #aaa; text-align: center; }
+  .mask-container {
+    position: relative;
+    width: 160px; height: 160px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mask-emoji {
+    font-size: 7rem;
+    position: relative;
+    z-index: 2;
+    transition: transform 0.08s;
+    pointer-events: none;
+  }
+  .mask-container:active .mask-emoji { transform: scale(0.9); }
+  .crack-svg {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+  }
+  .face-behind {
+    position: absolute;
+    font-size: 7rem;
+    opacity: 0;
+    z-index: 1;
+    transition: opacity 0.4s;
+  }
+  .progress-bar-wrap {
+    width: 240px;
+    height: 16px;
+    background: #12183a;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #2a3060;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #f4c95d, #e67e22);
+    border-radius: 8px;
+    transition: width 0.15s ease;
+  }
+  .progress-text { font-size: 0.85rem; color: #aaa; }
+  .tap-hint { font-size: 0.85rem; color: #888; }
+  .success-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(10,14,39,0.93);
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    gap: 16px;
+  }
+  .success-overlay.show { display: flex; }
+  .success-msg { font-size: 1.4rem; color: #f4c95d; text-align: center; }
+  .btn-retry {
+    padding: 12px 28px;
+    background: #f4c95d;
+    color: #0a0e27;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: auto;
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25%  { transform: translateX(-6px); }
+    75%  { transform: translateX(6px); }
+  }
+  .shaking { animation: shake 0.18s ease; }
+</style>
+</head>
+<body>
+<h1>🎭 민낯의 용기</h1>
+<p class="subtitle">가면을 탭해서 균열을 만들어요!</p>
+<div class="mask-container" id="maskContainer">
+  <div class="face-behind" id="faceBehind">😊</div>
+  <div class="mask-emoji" id="maskEmoji">🎭</div>
+  <svg class="crack-svg" id="crackSvg" viewBox="0 0 160 160" fill="none"></svg>
+</div>
+<div class="progress-bar-wrap">
+  <div class="progress-bar" id="progressBar" style="width:0%"></div>
+</div>
+<div class="progress-text" id="progressText">균열: 0 / 15</div>
+<p class="tap-hint">15번 탭하면 가면이 부서져요!</p>
+<div class="success-overlay" id="successOverlay">
+  <div style="font-size:3.5rem;">😊</div>
+  <div class="success-msg">가면을 벗었어요!<br>용기있는 모습이 빛나요! ✨</div>
+  <button class="btn-retry" onclick="resetGame()">다시 도전! 💪</button>
+</div>
+<script>
+  let cracks = 0, MAX = 15, completed = false;
+  const crackLines = [];
+  const svg = document.getElementById('crackSvg');
+
+  // Web Audio beep
+  let audioCtx;
+  function beep(freq=300, dur=0.06) {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+dur);
+      osc.start(); osc.stop(audioCtx.currentTime+dur);
+    } catch(e) {}
+  }
+
+  function addCrack() {
+    if (completed) return;
+    cracks++;
+    beep(200+cracks*10, 0.07);
+    const pct = cracks/MAX;
+    document.getElementById('progressBar').style.width = (pct*100)+'%';
+    document.getElementById('progressText').textContent = `균열: ${cracks} / ${MAX}`;
+
+    // generate a crack line from center
+    const cx=80, cy=80;
+    const angle = Math.random()*Math.PI*2;
+    const len = 20 + Math.random()*40;
+    const x2 = cx + Math.cos(angle)*len;
+    const y2 = cy + Math.sin(angle)*len;
+    const x3 = x2 + (Math.random()-0.5)*20;
+    const y3 = y2 + (Math.random()-0.5)*20;
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', `M ${cx} ${cy} L ${x2} ${y2} L ${x3} ${y3}`);
+    path.setAttribute('stroke', `rgba(255,255,255,${0.3+pct*0.5})`);
+    path.setAttribute('stroke-width', '2');
+    path.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(path);
+
+    const mc = document.getElementById('maskContainer');
+    mc.classList.add('shaking');
+    setTimeout(() => mc.classList.remove('shaking'), 200);
+
+    if (cracks >= MAX) {
+      completed = true;
+      document.getElementById('maskEmoji').style.opacity = '0';
+      document.getElementById('maskEmoji').style.transition = 'opacity 0.5s';
+      document.getElementById('faceBehind').style.opacity = '1';
+      document.getElementById('faceBehind').style.fontSize = '7rem';
+      setTimeout(() => {
+        document.getElementById('successOverlay').classList.add('show');
+        window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+      }, 700);
+    } else {
+      // update mask opacity to show wear
+      document.getElementById('maskEmoji').style.opacity = String(1 - pct*0.5);
+    }
+  }
+
+  function resetGame() {
+    cracks = 0; completed = false;
+    document.getElementById('progressBar').style.width = '0%';
+    document.getElementById('progressText').textContent = '균열: 0 / 15';
+    document.getElementById('maskEmoji').style.opacity = '1';
+    document.getElementById('maskEmoji').style.transition = '';
+    document.getElementById('faceBehind').style.opacity = '0';
+    svg.innerHTML = '';
+    document.getElementById('successOverlay').classList.remove('show');
+  }
+
+  const mc = document.getElementById('maskContainer');
+  mc.addEventListener('click', addCrack);
+  mc.addEventListener('touchend', e => { e.preventDefault(); addCrack(); }, {passive:false});
+</script>
+</body>
+</html>

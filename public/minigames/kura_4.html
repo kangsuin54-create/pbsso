@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구름 숨결</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Segoe UI', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 24px;
+  }
+  h1 { font-size: 1.4rem; text-align: center; }
+  .subtitle { font-size: 0.85rem; color: #aaa; text-align: center; }
+  .input-area {
+    width: 100%;
+    max-width: 340px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .input-label { font-size: 0.9rem; color: #aaa; }
+  textarea {
+    width: 100%;
+    height: 80px;
+    border-radius: 12px;
+    border: 2px solid #f4c95d;
+    background: #12183a;
+    color: #fff;
+    font-size: 1rem;
+    padding: 12px;
+    resize: none;
+    outline: none;
+    touch-action: auto;
+    font-family: inherit;
+  }
+  .btn-send {
+    padding: 12px 24px;
+    background: #f4c95d;
+    color: #0a0e27;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.05rem;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: auto;
+    align-self: center;
+  }
+  .btn-send:active { opacity: 0.8; }
+  .cloud-float {
+    position: fixed;
+    font-size: 3rem;
+    pointer-events: none;
+    z-index: 50;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 4px;
+  }
+  .cloud-float .cloud-text {
+    font-size: 0.75rem;
+    color: #fff;
+    background: rgba(30,40,80,0.85);
+    border-radius: 8px;
+    padding: 3px 8px;
+    white-space: nowrap;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cloud-float.animate {
+    animation: cloudUp 2s ease forwards;
+  }
+  @keyframes cloudUp {
+    0%   { opacity:1; transform: translateY(0) scale(1); }
+    70%  { opacity:1; transform: translateY(-55vh) scale(1.1); }
+    100% { opacity:0; transform: translateY(-68vh) scale(0.8); }
+  }
+  .success-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(10,14,39,0.93);
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    gap: 16px;
+  }
+  .success-overlay.show { display: flex; }
+  .success-msg { font-size: 1.4rem; color: #f4c95d; text-align: center; }
+  .btn-retry {
+    padding: 12px 28px;
+    background: #f4c95d;
+    color: #0a0e27;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: auto;
+  }
+</style>
+</head>
+<body>
+<h1>☁️ 구름 숨결</h1>
+<p class="subtitle">걱정을 구름에 보내봐요!</p>
+<div class="input-area">
+  <label class="input-label">지금 걱정되는 것은...</label>
+  <textarea id="worryInput" placeholder="걱정을 적어보세요..."></textarea>
+  <button class="btn-send" id="sendBtn">☁️ 구름에 보내기</button>
+</div>
+<div class="success-overlay" id="successOverlay">
+  <div style="font-size:3rem;">☁️</div>
+  <div class="success-msg">걱정을 날려보냈어요! ☁️<br>마음이 조금 가벼워졌나요?</div>
+  <button class="btn-retry" onclick="resetGame()">다시 도전! 💪</button>
+</div>
+<script>
+  let completed = false;
+
+  function sendWorry() {
+    if (completed) return;
+    const txt = document.getElementById('worryInput').value.trim();
+    if (!txt) { alert('걱정을 입력해주세요!'); return; }
+    completed = true;
+
+    const cloud = document.createElement('div');
+    cloud.className = 'cloud-float';
+    const textEl = document.createElement('div');
+    textEl.className = 'cloud-text';
+    textEl.textContent = txt;
+    cloud.innerHTML = '☁️';
+    cloud.appendChild(textEl);
+    cloud.style.cssText = `left:50%;top:60%;transform:translateX(-50%);`;
+    document.body.appendChild(cloud);
+    void cloud.offsetWidth;
+    cloud.classList.add('animate');
+
+    setTimeout(() => {
+      cloud.remove();
+      document.getElementById('successOverlay').classList.add('show');
+      window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+    }, 2100);
+  }
+
+  function resetGame() {
+    completed = false;
+    document.getElementById('worryInput').value = '';
+    document.getElementById('successOverlay').classList.remove('show');
+  }
+
+  document.getElementById('sendBtn').addEventListener('click', sendWorry);
+  document.getElementById('sendBtn').addEventListener('touchend', e => { e.preventDefault(); sendWorry(); }, {passive:false});
+</script>
+</body>
+</html>

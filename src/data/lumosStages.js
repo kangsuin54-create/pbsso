@@ -19,6 +19,7 @@ export const LUMOS_STAGES = [
       {
         id: 'arke_1', name: '물결의 움직임', emoji: '🌊',
         missionInstruction: '손가락을 드래그해서 장애물을 피하며 7초 동안 살아남아요!',
+        skillPhrase: '물처럼 유연하게 흘러가자!',
         description: '장애물이 나타나면 부딪히지 않고 물처럼 유연하게 틈새로 빠져나가요.',
         wrongFeedback: ['그럴 수도 있어! 하지만 물처럼 유연하게 돌아가는 게 더 현명해요~ 💡', '잘 생각해봐요! 막힌 곳에 억지로 부딪히면 더 아프지 않을까요? 💪', '거의 다 왔어요! 물이 어떻게 흐르는지 떠올려봐요 😊'],
         quiz: { question: '가려던 길이 막혔을 때 가장 좋은 행동은?', choices: ['억지로 밀고 나간다', '다른 길을 찾아본다', '그냥 포기한다', '화를 낸다'], correct: 1 },
@@ -28,6 +29,7 @@ export const LUMOS_STAGES = [
       {
         id: 'arke_2', name: '예스(Yes) 렌즈', emoji: '👓',
         missionInstruction: '움직이는 표시가 ✨구간✨에 들어올 때 탭해요!',
+        skillPhrase: '오히려 좋아! 긍정 필터 ON!',
         description: '긍정 필터를 씌우면 방해물이 선물 상자로 보여요. 새로운 시각으로 바라봐요!',
         wrongFeedback: ['그럴 수도 있어! "오히려 좋아!"라고 생각하면 어떨까요? 🌟', '긍정 렌즈를 끼면 세상이 달라 보여요! 다시 한번 💪', '거의 다 왔어요! 장애물 속에 숨겨진 선물을 찾아봐요 😊'],
         quiz: { question: '친구가 내 계획 대신 다른 방법을 제안할 때?', choices: ['무시한다', '"오히려 좋아!" 하고 들어본다', '화를 낸다', '그 자리를 떠난다'], correct: 1 },
@@ -36,16 +38,24 @@ export const LUMOS_STAGES = [
       },
       {
         id: 'arke_3', name: '만능 열쇠', emoji: '🗝️',
-        missionInstruction: '버튼을 꾹 누르고 있어서 게이지를 가득 채워요!',
+        missionInstruction: '열쇠와 자물쇠를 맞게 연결해요!',
+        skillPhrase: '딱 맞는 열쇠로 열어봐!',
         description: '딱딱한 열쇠를 자물쇠에 맞게 갈아내듯, 나를 상황에 맞게 조금씩 바꿔봐요.',
         wrongFeedback: ['그럴 수도 있어! 열쇠를 자물쇠에 맞게 다듬듯 나도 유연해질 수 있어요~ 💡', '잘 하고 있어요! 상황에 맞게 조금 바뀌는 게 약함이 아니라 지혜예요 💪', '거의 다 왔어요! 만능 열쇠의 비밀은 유연함이에요 😊'],
         quiz: { question: '상황이 달라졌을 때 필요한 마음가짐은?', choices: ['무조건 내 방식을 고집한다', '상황에 맞게 유연하게 조금 바꿔본다', '포기해버린다', '남 탓을 한다'], correct: 1 },
-        gameType: 'HOLD_GAUGE',
-        gameConfig: { holdMs: 2200 },
+        gameType: 'MATCH_PAIRS',
+        gameConfig: {
+          pairs: [
+            { id: 'k1', left: '🗝️ 낡은 열쇠', right: '🔒 나무 자물쇠' },
+            { id: 'k2', left: '🔑 현대식 열쇠', right: '🔐 숫자 자물쇠' },
+            { id: 'k3', left: '💛 마음 열쇠', right: '💝 마음 자물쇠' },
+          ],
+        },
       },
       {
         id: 'arke_4', name: '오히려 좋아', emoji: '✨',
         missionInstruction: '표시가 노란 구간에 올 때 "오히려 좋아!"를 탭해요!',
+        skillPhrase: '막힌 길 뒤에 더 좋은 길이 있어!',
         description: '가려던 길이 막혔을 때, "오히려 좋아!" 버튼으로 숨겨진 비밀 발판을 찾아요.',
         wrongFeedback: ['그럴 수도 있어! 막힌 길 뒤에 더 좋은 길이 숨어있을 수도 있어요~ 🌟', '잘 하고 있어요! "오히려 좋아!"는 마법 같은 말이에요 💪', '거의 다 왔어요! 실패 속에 기회가 있다는 걸 기억해요 😊'],
         quiz: { question: '열심히 준비한 계획이 실패했을 때 가장 도움이 되는 생각은?', choices: ['이건 최악이야, 다 끝났어', '오히려 새로운 기회가 생겼을 수도 있어', '모든 걸 포기하자', '남 탓을 하자'], correct: 1 },
@@ -55,6 +65,7 @@ export const LUMOS_STAGES = [
       {
         id: 'arke_5', name: '무지개 다리', emoji: '🌈',
         missionInstruction: '왼쪽과 오른쪽 카드에서 서로 어울리는 것끼리 연결해요!',
+        skillPhrase: '서로 다른 생각을 연결하면 다리가 돼!',
         description: '내 생각과 친구의 다른 생각을 연결하면 낭떠러지를 건너는 다리가 생겨요.',
         wrongFeedback: ['그럴 수도 있어! 두 의견을 합치면 더 멋진 아이디어가 나올 수 있어요~ 💡', '잘 하고 있어요! 무지개는 여러 색이 합쳐져야 아름다워요 💪', '거의 다 왔어요! 다른 생각도 소중한 색깔이에요 😊'],
         quiz: { question: '친구와 의견이 다를 때 가장 좋은 방법은?', choices: ['내 의견만 강요한다', '포기하고 친구 말만 따른다', '두 의견을 합쳐 더 좋은 방법을 만든다', '싸운다'], correct: 2 },
@@ -92,6 +103,7 @@ export const LUMOS_STAGES = [
       {
         id: 'envi_1', name: '시선 맞춤', emoji: '👀',
         missionInstruction: '버튼을 꾹 눌러서 시선을 끝까지 유지해요!',
+        skillPhrase: '나 여기 있어, 네 말 듣고 있어!',
         description: '친구와 눈을 맞추면 "나 네 말을 듣고 있어"라는 신호를 보내는 거예요.',
         wrongFeedback: ['그럴 수도 있어! 눈을 맞추면 "나 여기 있어"라는 신호가 돼요~ 💡', '잘 하고 있어요! 시선 맞춤은 공감의 첫 걸음이에요 💪', '거의 다 왔어요! 친구의 눈을 따뜻하게 바라봐요 😊'],
         quiz: { question: '친구가 고민을 이야기할 때 가장 먼저 해야 할 것은?', choices: ['핸드폰을 본다', '친구와 눈을 맞추고 집중한다', '다른 친구에게 말한다', '딴짓을 한다'], correct: 1 },
@@ -101,6 +113,7 @@ export const LUMOS_STAGES = [
       {
         id: 'envi_2', name: '감정 스캔', emoji: '🔍',
         missionInstruction: '친구의 표정을 보고 지금 어떤 감정인지 골라요!',
+        skillPhrase: '표정을 읽으면 마음이 보여!',
         description: '친구 표정을 보고 어떤 감정인지 알아채는 능력이에요. 기쁨, 슬픔, 화남을 구별해봐요.',
         wrongFeedback: ['그럴 수도 있어! 표정에는 마음이 담겨 있어요~ 자세히 봐봐요 💡', '잘 하고 있어요! 감정을 읽는 연습을 하면 점점 잘 돼요 💪', '거의 다 왔어요! 친구의 표정을 스캔해봐요 😊'],
         quiz: { question: '친구가 울고 있을 때 친구의 감정은?', choices: ['기쁨', '슬픔 또는 속상함', '화남', '아무렇지 않음'], correct: 1 },
@@ -109,6 +122,7 @@ export const LUMOS_STAGES = [
       {
         id: 'envi_3', name: '고개 끄덕', emoji: '🤔',
         missionInstruction: '비트가 뜰 때마다 타이밍에 맞춰 끄덕끄덕 탭해요!',
+        skillPhrase: '끄덕끄덕! 계속 말해도 돼!',
         description: 'NPC가 고민을 말할 때 타이밍에 맞춰 끄덕이면 "계속 말해도 돼"라는 신호예요.',
         wrongFeedback: ['그럴 수도 있어! 고개를 끄덕이면 친구가 더 말하고 싶어져요~ 💡', '잘 하고 있어요! 작은 리액션이 친구에게 큰 힘이 돼요 💪', '거의 다 왔어요! 끄덕끄덕, 같이 호흡 맞춰봐요 😊'],
         quiz: { question: '친구가 이야기할 때 내가 해야 할 행동은?', choices: ['가만히 표정 없이 있는다', '중간에 끊고 내 얘기를 한다', '가끔 고개를 끄덕이며 반응한다', '다른 곳을 바라본다'], correct: 2 },
@@ -117,15 +131,22 @@ export const LUMOS_STAGES = [
       },
       {
         id: 'envi_4', name: '마음의 메아리', emoji: '💬',
-        missionInstruction: '친구 말에 가장 공감되는 대답을 골라요!',
+        missionInstruction: '친구 말에 공감하는 답변을 직접 써봐요!',
+        skillPhrase: '네 마음이 들려!',
         description: '친구가 한 말의 핵심 단어를 포함해 되물어주면 "잘 듣고 있어"가 전해져요.',
         wrongFeedback: ['그럴 수도 있어! 친구 말을 메아리처럼 돌려주면 더 친해져요~ 💡', '잘 하고 있어요! "그래서 네가 슬펐구나?"처럼 말해봐요 💪', '거의 다 왔어요! 친구의 말을 내 말로 다시 표현해봐요 😊'],
         quiz: { question: '친구가 "나 오늘 너무 힘들어"라고 했을 때 가장 공감되는 대답은?', choices: ['"나도 힘들어"', '"그게 뭐가 힘들어?"', '"많이 힘들었구나, 무슨 일이야?"', '"그냥 참아"'], correct: 2 },
-        gameType: 'CHOICE',
+        gameType: 'TYPE_INPUT',
+        gameConfig: {
+          prompt: '친구가 "나 오늘 너무 힘들어"라고 했어요. 공감하는 말을 적어봐요.',
+          placeholder: '많이 힘들었겠다...',
+          minLength: 4,
+        },
       },
       {
         id: 'envi_5', name: '따듯한 손길', emoji: '🤝',
         missionInstruction: '표시가 따뜻한 구간에 올 때 응원을 전해요!',
+        skillPhrase: '기운 내! 내가 응원할게!',
         description: '기운이 없는 친구에게 응원의 한마디나 작은 행동으로 마음을 전해봐요.',
         wrongFeedback: ['그럴 수도 있어! 작은 응원이 친구에게 큰 힘이 돼요~ 💡', '잘 하고 있어요! 따뜻한 한마디가 마음을 녹여요 💪', '거의 다 왔어요! 친구에게 따뜻한 손길을 건네봐요 😊'],
         quiz: { question: '친구가 실패해서 속상해 할 때 가장 도움이 되는 행동은?', choices: ['"그러게 내가 뭐랬어"라고 한다', '"괜찮아, 다음엔 잘 될 거야"라고 응원한다', '모른 척한다', '"나는 잘 됐는데"라고 한다'], correct: 1 },
@@ -156,12 +177,13 @@ export const LUMOS_STAGES = [
     skillCards: [
       {
         id: 'apel_1', name: '레드라이트', emoji: '🔴',
-        missionInstruction: '멈추는 연습! 버튼을 꾹 눌러 게이지를 가득 채워요!',
+        missionInstruction: '신호가 켜질 때마다 타이밍에 맞춰 멈춰요!',
+        skillPhrase: '빨간불! 멈춰요!',
         description: '신호가 "멈춰"라고 할 때 조작버튼에서 손을 떼고 3초간 유지해요.',
         wrongFeedback: ['그럴 수도 있어! 빨간 불이 켜지면 먼저 멈추는 게 중요해요~ 💡', '잘 하고 있어요! 멈추는 용기가 달리는 것보다 어려울 때도 있어요 💪', '거의 다 왔어요! 레드라이트 = STOP! 기억해봐요 😊'],
         quiz: { question: '하고 싶은 행동이 생겼을 때 가장 먼저 해야 할 것은?', choices: ['바로 행동한다', '일단 멈추고 생각해본다', '친구에게 하라고 시킨다', '화를 낸다'], correct: 1 },
-        gameType: 'HOLD_GAUGE',
-        gameConfig: { holdMs: 2800 },
+        gameType: 'RHYTHM_TAP',
+        gameConfig: { beatCount: 4, beatIntervalMs: 1100, toleranceMs: 400, hitsNeeded: 3 },
       },
       {
         id: 'apel_2', name: '심호흡 센서', emoji: '💨',

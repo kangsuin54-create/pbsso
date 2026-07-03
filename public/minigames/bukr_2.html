@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>먼저 안녕</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Segoe UI', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 24px;
+  }
+  h1 { font-size: 1.4rem; text-align: center; }
+  .subtitle { font-size: 0.85rem; color: #aaa; text-align: center; }
+  .npc-area {
+    width: 140px; height: 140px;
+    background: #12183a;
+    border: 2px solid #2a3060;
+    border-radius: 24px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 5rem;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+  .npc-area.awake { border-color: #f4c95d; }
+  .npc-area.wave {
+    animation: waveShake 0.5s ease;
+  }
+  @keyframes waveShake {
+    0%,100% { transform: rotate(0deg); }
+    25%  { transform: rotate(-5deg); }
+    75%  { transform: rotate(5deg); }
+  }
+  .timer-bar-wrap {
+    width: 200px;
+    height: 10px;
+    background: #12183a;
+    border-radius: 6px;
+    overflow: hidden;
+    display: none;
+  }
+  .timer-bar {
+    height: 100%;
+    background: #f4c95d;
+    border-radius: 6px;
+    transition: width 0.05s linear;
+  }
+  .score-row { font-size: 1rem; color: #aaa; }
+  .status-msg { font-size: 1rem; text-align: center; color: #f4c95d; min-height: 1.4em; }
+  .btn-hello {
+    padding: 16px 40px;
+    background: #f4c95d;
+    color: #0a0e27;
+    border: none;
+    border-radius: 14px;
+    font-size: 1.3rem;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: auto;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .btn-hello.active { opacity: 1; pointer-events: auto; }
+  .btn-hello:active { opacity: 0.8; }
+  .success-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(10,14,39,0.93);
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    gap: 16px;
+  }
+  .success-overlay.show { display: flex; }
+  .success-msg { font-size: 1.4rem; color: #f4c95d; text-align: center; }
+  .btn-retry {
+    padding: 12px 28px;
+    background: #f4c95d;
+    color: #0a0e27;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: auto;
+  }
+</style>
+</head>
+<body>
+<h1>👋 먼저 안녕</h1>
+<p class="subtitle">NPC가 눈을 뜨면 빠르게 인사해요!</p>
+<div class="npc-area" id="npcArea">😴</div>
+<div class="timer-bar-wrap" id="timerBarWrap">
+  <div class="timer-bar" id="timerBar" style="width:100%"></div>
+</div>
+<div class="score-row" id="scoreRow">성공: 0 / 3회 중 2회 필요</div>
+<div class="status-msg" id="statusMsg">기다려봐요...</div>
+<button class="btn-hello" id="helloBtn" onclick="sayHello()">안녕! 👋</button>
+<div class="success-overlay" id="successOverlay">
+  <div style="font-size:3rem;">👋</div>
+  <div class="success-msg">먼저 인사했어요! 용감해요! 🌟</div>
+  <button class="btn-retry" onclick="resetGame()">다시 도전! 💪</button>
+</div>
+<script>
+  let score = 0, round = 0, awake = false, canGreet = false, timerId, barAnim, WINDOW = 1500, completed = false;
+
+  function startRound() {
+    if (round >= 3 || completed) return;
+    awake = false; canGreet = false;
+    document.getElementById('npcArea').textContent = '😴';
+    document.getElementById('npcArea').classList.remove('awake','wave');
+    document.getElementById('helloBtn').classList.remove('active');
+    document.getElementById('timerBarWrap').style.display = 'none';
+    document.getElementById('timerBar').style.width = '100%';
+    const delay = 2000 + Math.random()*2000;
+    document.getElementById('statusMsg').textContent = '기다려봐요...';
+    timerId = setTimeout(() => openEyes(), delay);
+  }
+
+  function openEyes() {
+    awake = true; canGreet = true;
+    round++;
+    document.getElementById('npcArea').textContent = '😊';
+    document.getElementById('npcArea').classList.add('awake');
+    document.getElementById('helloBtn').classList.add('active');
+    document.getElementById('statusMsg').textContent = '눈을 떴어요! 빨리 인사해요! ⏱️';
+    document.getElementById('timerBarWrap').style.display = 'block';
+    let elapsed = 0;
+    const step = 50;
+    barAnim = setInterval(() => {
+      elapsed += step;
+      document.getElementById('timerBar').style.width = Math.max(0, 100-(elapsed/WINDOW*100)) + '%';
+      if (elapsed >= WINDOW) {
+        clearInterval(barAnim);
+        missedGreeting();
+      }
+    }, step);
+  }
+
+  function sayHello() {
+    if (!canGreet) return;
+    canGreet = false;
+    clearInterval(barAnim);
+    score++;
+    document.getElementById('helloBtn').classList.remove('active');
+    document.getElementById('npcArea').classList.add('wave');
+    document.getElementById('statusMsg').textContent = '잘했어요! 👋';
+    document.getElementById('scoreRow').textContent = `성공: ${score} / 3회 중 2회 필요`;
+    setTimeout(() => {
+      if (score >= 2) {
+        completed = true;
+        document.getElementById('successOverlay').classList.add('show');
+        window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+      } else if (round < 3) {
+        startRound();
+      } else {
+        document.getElementById('statusMsg').textContent = '아쉬워요! 다시 해봐요!';
+        setTimeout(resetGame, 1800);
+      }
+    }, 700);
+  }
+
+  function missedGreeting() {
+    canGreet = false;
+    document.getElementById('helloBtn').classList.remove('active');
+    document.getElementById('npcArea').textContent = '😴';
+    document.getElementById('npcArea').classList.remove('awake');
+    document.getElementById('statusMsg').textContent = '놓쳤어요! 다음 기회를 노려요!';
+    document.getElementById('scoreRow').textContent = `성공: ${score} / 3회 중 2회 필요`;
+    setTimeout(() => {
+      if (round < 3) {
+        startRound();
+      } else {
+        document.getElementById('statusMsg').textContent = '아쉬워요! 다시 해봐요!';
+        setTimeout(resetGame, 1800);
+      }
+    }, 1000);
+  }
+
+  function resetGame() {
+    score = 0; round = 0; awake = false; canGreet = false; completed = false;
+    clearTimeout(timerId); clearInterval(barAnim);
+    document.getElementById('scoreRow').textContent = '성공: 0 / 3회 중 2회 필요';
+    document.getElementById('successOverlay').classList.remove('show');
+    startRound();
+  }
+
+  document.getElementById('helloBtn').addEventListener('touchend', e => { e.preventDefault(); sayHello(); });
+  startRound();
+</script>
+</body>
+</html>

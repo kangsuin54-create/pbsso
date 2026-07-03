@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>안전한 기지</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Segoe UI', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 24px;
+    user-select: none;
+  }
+  h1 { font-size: 1.4rem; text-align: center; }
+  .subtitle { font-size: 0.85rem; color: #aaa; text-align: center; }
+  .doors-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    width: 100%;
+    max-width: 320px;
+  }
+  .door {
+    height: 120px;
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+    cursor: pointer;
+    border: 3px solid rgba(255,255,255,0.15);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .door:active { transform: scale(0.95); }
+  .door .door-label { font-size: 0.9rem; font-weight: bold; color: #fff; z-index: 2; }
+  .door .door-icon  { font-size: 2.5rem; z-index: 2; }
+  .door .door-shine {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0);
+    transition: background 0.5s;
+  }
+  .door.opening .door-shine { background: rgba(255,240,180,0.35); }
+  .door.opening { animation: doorOpen 0.8s ease forwards; }
+  @keyframes doorOpen {
+    0%   { transform: perspective(300px) rotateY(0deg); }
+    50%  { transform: perspective(300px) rotateY(-30deg); }
+    100% { transform: perspective(300px) rotateY(0deg); }
+  }
+  .msg-area { font-size: 1.1rem; text-align: center; color: #f4c95d; min-height: 1.4em; }
+  .success-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(10,14,39,0.93);
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    gap: 16px;
+  }
+  .success-overlay.show { display: flex; }
+  .success-msg { font-size: 1.4rem; color: #f4c95d; text-align: center; }
+  .btn-retry {
+    padding: 12px 28px;
+    background: #f4c95d;
+    color: #0a0e27;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    touch-action: auto;
+  }
+</style>
+</head>
+<body>
+<h1>🏰 안전한 기지</h1>
+<p class="subtitle">마음에 드는 문을 골라봐요!</p>
+<div class="doors-grid">
+  <div class="door" style="background:linear-gradient(135deg,#1a3a6e,#2980b9);" onclick="chooseDoor(this,'파란 문')" ontouchend="touchDoor(event,this,'파란 문')">
+    <span class="door-icon">🚪</span>
+    <span class="door-label">파란 문</span>
+    <div class="door-shine"></div>
+  </div>
+  <div class="door" style="background:linear-gradient(135deg,#1a5e2a,#27ae60);" onclick="chooseDoor(this,'초록 문')" ontouchend="touchDoor(event,this,'초록 문')">
+    <span class="door-icon">🚪</span>
+    <span class="door-label">초록 문</span>
+    <div class="door-shine"></div>
+  </div>
+  <div class="door" style="background:linear-gradient(135deg,#7d6608,#f4c95d);" onclick="chooseDoor(this,'노란 문')" ontouchend="touchDoor(event,this,'노란 문')">
+    <span class="door-icon">🚪</span>
+    <span class="door-label">노란 문</span>
+    <div class="door-shine"></div>
+  </div>
+  <div class="door" style="background:linear-gradient(135deg,#6d1f4e,#e91e8c);" onclick="chooseDoor(this,'분홍 문')" ontouchend="touchDoor(event,this,'분홍 문')">
+    <span class="door-icon">🚪</span>
+    <span class="door-label">분홍 문</span>
+    <div class="door-shine"></div>
+  </div>
+</div>
+<div class="msg-area" id="msgArea">어느 문이 따뜻하게 느껴지나요?</div>
+<div class="success-overlay" id="successOverlay">
+  <div style="font-size:3rem;">🏰</div>
+  <div class="success-msg" id="successMsg"></div>
+  <button class="btn-retry" onclick="resetGame()">다시 도전! 💪</button>
+</div>
+<script>
+  let locked = false;
+
+  function chooseDoor(el, name) {
+    if (locked) return;
+    locked = true;
+    el.classList.add('opening');
+    document.getElementById('msgArea').textContent = `${name}을 선택했어요! 따뜻한 빛이 새어나와요 ✨`;
+    setTimeout(() => {
+      document.getElementById('successMsg').textContent = `이곳이 내 안전한 기지야 🏰\n${name}을 통해 들어온 빛이 따뜻해요!`;
+      document.getElementById('successOverlay').classList.add('show');
+      window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+    }, 2000);
+  }
+
+  function touchDoor(e, el, name) {
+    e.preventDefault();
+    chooseDoor(el, name);
+  }
+
+  function resetGame() {
+    locked = false;
+    document.querySelectorAll('.door').forEach(d => d.classList.remove('opening'));
+    document.getElementById('msgArea').textContent = '어느 문이 따뜻하게 느껴지나요?';
+    document.getElementById('successOverlay').classList.remove('show');
+  }
+</script>
+</body>
+</html>

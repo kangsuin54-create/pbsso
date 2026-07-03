@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>심호흡 센서</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Arial', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    user-select: none;
+    transition: background 0.5s;
+  }
+  h1 { font-size: 20px; color: #f4c95d; margin-bottom: 4px; }
+  #subtitle { font-size: 12px; color: #aaa; margin-bottom: 24px; }
+  #char-wrap {
+    position: relative;
+    width: 120px; height: 120px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 20px;
+  }
+  #char-circle {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: radial-gradient(circle, #81d4fa, #0277bd);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 40px;
+    transition: transform 0.3s ease;
+    box-shadow: 0 0 20px rgba(79,195,247,0.4);
+  }
+  #char-circle.inhale { transform: scale(1.35); box-shadow: 0 0 30px rgba(79,195,247,0.8); }
+  #gauge-label { font-size: 13px; color: #aaa; margin-bottom: 6px; }
+  #gauge-wrap {
+    width: 280px; height: 24px;
+    background: #1a2040;
+    border-radius: 12px;
+    border: 2px solid #2a3060;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  #gauge-fill {
+    height: 100%; width: 0%;
+    border-radius: 12px;
+    background: linear-gradient(90deg, #4fc3f7, #0277bd);
+    transition: width 0.05s linear;
+  }
+  #zone-marker {
+    position: absolute;
+    top: 0; left: 30%; width: 40%;
+    height: 100%;
+    background: rgba(102,187,106,0.3);
+    border-left: 2px solid #66bb6a;
+    border-right: 2px solid #66bb6a;
+    pointer-events: none;
+  }
+  #zone-label {
+    font-size: 11px; color: #66bb6a;
+    text-align: center; margin-bottom: 14px;
+  }
+  #cycle-display { font-size: 14px; color: #aaa; margin-bottom: 14px; }
+  #breath-btn {
+    width: 120px; height: 120px; border-radius: 50%;
+    background: radial-gradient(circle, #4fc3f7, #0277bd);
+    border: none; font-size: 20px; font-weight: bold; color: #fff;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(79,195,247,0.4);
+    touch-action: none;
+  }
+  #breath-btn:active { transform: scale(0.93); }
+  #status-text { font-size: 16px; color: #f4c95d; margin-top: 14px; min-height: 24px; }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10,14,39,0.92);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 26px; color: #f4c95d; margin-bottom: 16px; text-align: center; }
+  #overlay p { font-size: 14px; color: #ccc; margin-bottom: 24px; }
+  .btn {
+    background: #f4c95d; color: #0a0e27;
+    border: none; border-radius: 24px;
+    padding: 12px 32px; font-size: 16px; font-weight: bold;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<h1>🌬️ 심호흡 센서</h1>
+<div id="subtitle">초록 구간(30~70%)에서 버튼을 홀드하세요!</div>
+<div id="char-wrap">
+  <div id="char-circle">😊</div>
+</div>
+<div id="gauge-label">게이지</div>
+<div id="gauge-wrap">
+  <div id="zone-marker"></div>
+  <div id="gauge-fill"></div>
+</div>
+<div id="zone-label">← 초록 구간(들숨 타이밍) →</div>
+<div id="cycle-display">사이클: <span id="cycleNum">0</span> / 3</div>
+<button id="breath-btn"
+  ontouchstart="holdStart(event)" ontouchend="holdEnd(event)"
+  onmousedown="holdStart(event)" onmouseup="holdEnd(event)">
+  들숨 홀드
+</button>
+<div id="status-text">준비...</div>
+
+<div id="overlay">
+  <h2 id="overlayTitle"></h2>
+  <p id="overlayMsg"></p>
+  <button class="btn" id="overlayBtn">다시 도전! 💪</button>
+</div>
+
+<script>
+const gaugeFill = document.getElementById('gauge-fill');
+const charCircle = document.getElementById('char-circle');
+const cycleNumEl = document.getElementById('cycleNum');
+const statusText = document.getElementById('status-text');
+const overlay = document.getElementById('overlay');
+
+let gauge = 0; // 0~100
+let dir = 1;
+let isHolding = false;
+let cycleCount = 0;
+let inZoneHeld = false;
+let heldMs = 0;
+let lastTs = 0;
+let gameRunning = true;
+let animId;
+const SPEED = 20; // per second (cycle ~5s)
+const ZONE_MIN = 30, ZONE_MAX = 70;
+const HOLD_NEEDED = 0.6; // seconds in zone to count
+
+function holdStart(e) { e.preventDefault(); isHolding = true; }
+function holdEnd(e) { e.preventDefault(); isHolding = false; heldMs = 0; inZoneHeld = false; }
+
+function gameLoop(ts) {
+  if (!gameRunning) return;
+  const dt = lastTs ? (ts - lastTs) / 1000 : 0.016;
+  lastTs = ts;
+
+  gauge += dir * SPEED * dt;
+  if (gauge >= 100) { gauge = 100; dir = -1; }
+  if (gauge <= 0) { gauge = 0; dir = 1; }
+
+  gaugeFill.style.width = gauge + '%';
+
+  const inZone = gauge >= ZONE_MIN && gauge <= ZONE_MAX;
+
+  if (isHolding && inZone) {
+    charCircle.classList.add('inhale');
+    heldMs += dt;
+    statusText.textContent = `들숨 중... (${(heldMs).toFixed(1)}s)`;
+    if (heldMs >= HOLD_NEEDED && !inZoneHeld) {
+      inZoneHeld = true;
+      cycleCount++;
+      cycleNumEl.textContent = cycleCount;
+      statusText.textContent = '✅ 좋아요! 사이클 완성!';
+      charCircle.style.background = 'radial-gradient(circle, #a5d6a7, #1b5e20)';
+      setTimeout(() => {
+        charCircle.style.background = '';
+        statusText.textContent = '';
+      }, 800);
+
+      if (cycleCount >= 3) {
+        gameRunning = false;
+        cancelAnimationFrame(animId);
+        setTimeout(() => {
+          document.getElementById('overlayTitle').textContent = '깊은 숨 🌊';
+          document.getElementById('overlayMsg').textContent = '3사이클 심호흡 완료!';
+          document.getElementById('overlayBtn').style.display = 'none';
+          overlay.classList.add('show');
+          window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+        }, 800);
+        return;
+      }
+    }
+  } else {
+    charCircle.classList.remove('inhale');
+    if (!isHolding) {
+      heldMs = 0;
+      inZoneHeld = false;
+    }
+    if (!inZone && !isHolding) statusText.textContent = inZone ? '지금이에요! 홀드!' : (gauge < ZONE_MIN ? '게이지가 올라오길 기다려요...' : '게이지가 내려오길 기다려요...');
+  }
+
+  if (isHolding && !inZone) {
+    statusText.textContent = '⚠️ 초록 구간에서만!';
+    heldMs = 0;
+    inZoneHeld = false;
+  }
+
+  animId = requestAnimationFrame(gameLoop);
+}
+
+document.getElementById('overlayBtn').addEventListener('click', () => {
+  gauge = 0; dir = 1;
+  cycleCount = 0; heldMs = 0; inZoneHeld = false; isHolding = false;
+  cycleNumEl.textContent = 0;
+  charCircle.classList.remove('inhale');
+  charCircle.style.background = '';
+  statusText.textContent = '준비...';
+  gameRunning = true;
+  lastTs = 0;
+  overlay.classList.remove('show');
+  document.getElementById('overlayBtn').style.display = 'block';
+  animId = requestAnimationFrame(gameLoop);
+});
+
+animId = requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>

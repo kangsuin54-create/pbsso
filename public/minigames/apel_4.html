@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>생각의 방패</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Arial', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    user-select: none;
+    transition: background 0.3s;
+  }
+  h1 { font-size: 20px; color: #f4c95d; margin-bottom: 4px; }
+  #subtitle { font-size: 12px; color: #aaa; margin-bottom: 16px; }
+  #round-display { font-size: 13px; color: #aaa; margin-bottom: 12px; }
+  #situation-box {
+    background: #1a2040;
+    border: 2px solid #e53935;
+    border-radius: 16px;
+    padding: 16px 20px;
+    font-size: 17px; color: #fff;
+    max-width: 300px; text-align: center;
+    margin-bottom: 20px;
+    animation: shake 0.4s ease;
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(6px); }
+  }
+  .situation-box-shake { animation: shake 0.5s ease; }
+  #choices { display: flex; flex-direction: column; gap: 10px; width: 300px; }
+  .choice-btn {
+    padding: 14px 12px; font-size: 14px;
+    background: #1a2040;
+    color: #eee;
+    border: 2px solid #2a3060;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .choice-btn:active { transform: scale(0.97); }
+  .choice-btn.correct {
+    background: #1b5e20; border-color: #66bb6a; color: #fff;
+  }
+  .choice-btn.wrong {
+    background: #7f0000; border-color: #e53935; color: #fff;
+  }
+  #shield {
+    font-size: 48px;
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%,-50%) scale(0);
+    transition: transform 0.4s ease;
+    z-index: 50; pointer-events: none;
+  }
+  #shield.show { transform: translate(-50%,-50%) scale(1.5); }
+  #score-display { margin-top: 16px; font-size: 14px; color: #aaa; }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10,14,39,0.92);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 26px; color: #f4c95d; margin-bottom: 16px; text-align: center; }
+  #overlay p { font-size: 14px; color: #ccc; margin-bottom: 24px; }
+  .btn {
+    background: #f4c95d; color: #0a0e27;
+    border: none; border-radius: 24px;
+    padding: 12px 32px; font-size: 16px; font-weight: bold;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<h1>🛡️ 생각의 방패</h1>
+<div id="subtitle">돌발 상황! 올바른 반응을 선택하세요.</div>
+<div id="round-display">라운드 <span id="roundNum">1</span> / 3</div>
+<div id="situation-box" id="situationBox">갑자기 친구가 밀었어!</div>
+<div id="choices"></div>
+<div id="shield">🛡️</div>
+<div id="score-display">정답: <span id="scoreNum">0</span> / 3</div>
+
+<div id="overlay">
+  <h2 id="overlayTitle"></h2>
+  <p id="overlayMsg"></p>
+  <button class="btn" id="overlayBtn">다시 도전! 💪</button>
+</div>
+
+<script>
+const rounds = [
+  {
+    situation: '😤 갑자기 친구가 밀었어!',
+    choices: ['지금 하면 안 돼', '바로 반응해야지', '무시하자'],
+    answer: 0
+  },
+  {
+    situation: '😡 수업 중에 누군가 내 물건을 가져갔어!',
+    choices: ['선생님께 말씀드릴게', '당장 빼앗아야지', '그냥 넘어가자'],
+    answer: 0
+  },
+  {
+    situation: '🤬 게임에서 졌는데 상대가 놀려!',
+    choices: ['잠깐 숨 고르고 생각해', '똑같이 놀려줄거야', '게임기를 던져버려'],
+    answer: 0
+  },
+];
+
+let currentRound = 0;
+let score = 0;
+let locked = false;
+const shieldEl = document.getElementById('shield');
+const overlay = document.getElementById('overlay');
+const situationBox = document.getElementById('situation-box');
+const roundNumEl = document.getElementById('roundNum');
+const scoreNumEl = document.getElementById('scoreNum');
+const choicesEl = document.getElementById('choices');
+
+function renderRound() {
+  const r = rounds[currentRound];
+  roundNumEl.textContent = currentRound + 1;
+  situationBox.textContent = r.situation;
+  locked = false;
+
+  // shake
+  situationBox.classList.remove('situation-box-shake');
+  void situationBox.offsetWidth;
+  situationBox.classList.add('situation-box-shake');
+
+  document.body.style.background = '#1a0a0a';
+  setTimeout(() => { document.body.style.background = '#0a0e27'; }, 400);
+
+  choicesEl.innerHTML = '';
+  r.choices.forEach((ch, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = ch;
+    btn.ontouchstart = (e) => { e.preventDefault(); handleChoice(i, btn, r); };
+    btn.onmousedown = () => handleChoice(i, btn, r);
+    choicesEl.appendChild(btn);
+  });
+}
+
+function handleChoice(i, btn, r) {
+  if (locked) return;
+  locked = true;
+
+  if (i === r.answer) {
+    btn.classList.add('correct');
+    score++;
+    scoreNumEl.textContent = score;
+
+    shieldEl.classList.add('show');
+    setTimeout(() => shieldEl.classList.remove('show'), 600);
+  } else {
+    btn.classList.add('wrong');
+    choicesEl.querySelectorAll('.choice-btn')[r.answer].classList.add('correct');
+  }
+
+  setTimeout(() => {
+    currentRound++;
+    if (currentRound >= rounds.length) {
+      endGame();
+    } else {
+      renderRound();
+    }
+  }, 1000);
+}
+
+function endGame() {
+  if (score >= 2) {
+    document.getElementById('overlayTitle').textContent = '완벽한 방패! 🛡️';
+    document.getElementById('overlayMsg').textContent = `${score}/3 정답! 충동을 잘 조절했어요!`;
+    document.getElementById('overlayBtn').style.display = 'none';
+    overlay.classList.add('show');
+    window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+  } else {
+    document.getElementById('overlayTitle').textContent = '아쉬워요! 😅';
+    document.getElementById('overlayMsg').textContent = `${score}/3 정답. 2개 이상 필요해요!`;
+    overlay.classList.add('show');
+  }
+}
+
+document.getElementById('overlayBtn').addEventListener('click', () => {
+  currentRound = 0; score = 0;
+  scoreNumEl.textContent = 0;
+  overlay.classList.remove('show');
+  document.getElementById('overlayBtn').style.display = 'block';
+  renderRound();
+});
+
+renderRound();
+</script>
+</body>
+</html>

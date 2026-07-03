@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>물결의 움직임</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Arial', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  #header {
+    padding: 12px;
+    text-align: center;
+    z-index: 10;
+    position: relative;
+  }
+  h1 { font-size: 18px; color: #f4c95d; }
+  p { font-size: 12px; color: #aaa; margin-top: 4px; }
+  #canvas { display: block; touch-action: none; }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10,14,39,0.9);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 26px; color: #f4c95d; margin-bottom: 16px; text-align: center; }
+  #overlay p { font-size: 14px; color: #ccc; margin-bottom: 24px; text-align: center; }
+  .btn {
+    background: #f4c95d; color: #0a0e27;
+    border: none; border-radius: 24px;
+    padding: 12px 32px; font-size: 16px; font-weight: bold;
+    cursor: pointer;
+  }
+  #hud {
+    position: fixed; top: 60px; left: 0; right: 0;
+    display: flex; justify-content: space-around;
+    padding: 6px 16px; z-index: 10;
+  }
+  .hud-item { font-size: 14px; color: #f4c95d; }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>💧 물결의 움직임</h1>
+  <p>구슬을 드래그해서 장애물을 피하세요! 5개 통과하면 성공!</p>
+</div>
+<div id="hud">
+  <span class="hud-item">통과: <span id="scoreDisplay">0</span>/5</span>
+  <span class="hud-item">시간: <span id="timeDisplay">7</span>초</span>
+</div>
+<canvas id="canvas"></canvas>
+
+<div id="overlay">
+  <h2 id="overlayTitle"></h2>
+  <p id="overlayMsg"></p>
+  <button class="btn" id="overlayBtn">다시 도전! 💪</button>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+const overlayTitle = document.getElementById('overlayTitle');
+const overlayMsg = document.getElementById('overlayMsg');
+const overlayBtn = document.getElementById('overlayBtn');
+const scoreDisplay = document.getElementById('scoreDisplay');
+const timeDisplay = document.getElementById('timeDisplay');
+
+let W, H;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  player.x = W / 2;
+  player.y = H - 80;
+}
+
+let player = { x: 0, y: 0, r: 15, dragging: false };
+let obstacles = [];
+let score = 0;
+let gameOver = false;
+let success = false;
+let timeLeft = 7;
+let lastTime = 0;
+let obstacleTimer = 0;
+let shakeTime = 0;
+let shakeX = 0;
+
+function spawnObstacle() {
+  const x = Math.random() * (W - 60) + 30;
+  obstacles.push({ x, y: -20, w: 40, h: 16, passed: false });
+}
+
+function getPos(e) {
+  const t = e.touches ? e.touches[0] : e;
+  return { x: t.clientX, y: t.clientY };
+}
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const p = getPos(e);
+  const dx = p.x - player.x, dy = p.y - player.y;
+  if (Math.sqrt(dx*dx+dy*dy) < player.r + 20) player.dragging = true;
+}, { passive: false });
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (player.dragging) { const p = getPos(e); player.x = p.x; player.y = p.y; }
+}, { passive: false });
+canvas.addEventListener('touchend', e => { e.preventDefault(); player.dragging = false; }, { passive: false });
+canvas.addEventListener('mousedown', e => {
+  const dx = e.clientX - player.x, dy = e.clientY - player.y;
+  if (Math.sqrt(dx*dx+dy*dy) < player.r + 20) player.dragging = true;
+});
+canvas.addEventListener('mousemove', e => {
+  if (player.dragging) { player.x = e.clientX; player.y = e.clientY; }
+});
+canvas.addEventListener('mouseup', () => player.dragging = false);
+
+function checkCollision(obs) {
+  const cx = Math.max(obs.x - obs.w/2, Math.min(player.x, obs.x + obs.w/2));
+  const cy = Math.max(obs.y - obs.h/2, Math.min(player.y, obs.y + obs.h/2));
+  const dx = player.x - cx, dy = player.y - cy;
+  return dx*dx + dy*dy < player.r * player.r;
+}
+
+function showOverlay(title, msg, isSuccess) {
+  overlayTitle.textContent = title;
+  overlayMsg.textContent = msg;
+  if (isSuccess) overlayBtn.style.display = 'none';
+  else overlayBtn.style.display = 'block';
+  overlay.classList.add('show');
+}
+
+function reset() {
+  obstacles = [];
+  score = 0;
+  timeLeft = 7;
+  gameOver = false;
+  success = false;
+  shakeTime = 0;
+  obstacleTimer = 0;
+  player.x = W / 2;
+  player.y = H - 80;
+  overlay.classList.remove('show');
+  overlayBtn.style.display = 'block';
+  lastTime = 0;
+  requestAnimationFrame(loop);
+}
+
+overlayBtn.addEventListener('click', reset);
+
+function loop(ts) {
+  if (gameOver) return;
+  if (!lastTime) lastTime = ts;
+  const dt = (ts - lastTime) / 1000;
+  lastTime = ts;
+
+  timeLeft -= dt;
+  obstacleTimer += dt;
+
+  if (obstacleTimer > 0.8) {
+    spawnObstacle();
+    obstacleTimer = 0;
+  }
+
+  obstacles.forEach(obs => {
+    obs.y += 120 * dt;
+    if (!obs.passed && obs.y > player.y + obs.h) {
+      obs.passed = true;
+      score++;
+      scoreDisplay.textContent = score;
+    }
+    if (checkCollision(obs)) {
+      shakeTime = 0.4;
+    }
+  });
+
+  obstacles = obstacles.filter(o => o.y < H + 30);
+
+  if (shakeTime > 0) {
+    shakeTime -= dt;
+    shakeX = (Math.random() - 0.5) * 10;
+    if (shakeTime <= 0) {
+      shakeX = 0;
+      gameOver = true;
+      showOverlay('아쉬워요! 😅', '장애물에 부딪혔어요. 다시 해보세요!', false);
+      return;
+    }
+  }
+
+  if (score >= 5 || timeLeft <= 0) {
+    if (score >= 5 || timeLeft <= 0) {
+      gameOver = true;
+      if (score >= 5) {
+        showOverlay('물처럼 유연하게! ✨', '5개 장애물을 모두 통과했어요!', true);
+        setTimeout(() => window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*'), 1500);
+      } else {
+        showOverlay('아쉬워요! 😅', '장애물을 5개 통과해야 해요.', false);
+      }
+      return;
+    }
+  }
+
+  timeDisplay.textContent = Math.max(0, Math.ceil(timeLeft));
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  ctx.translate(shakeX, 0);
+
+  // 배경 별
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  for (let i = 0; i < 30; i++) {
+    ctx.fillRect((i * 137 + 10) % W, (i * 97 + 5) % H, 1, 1);
+  }
+
+  // 장애물
+  obstacles.forEach(obs => {
+    ctx.fillStyle = '#607d8b';
+    ctx.beginPath();
+    ctx.roundRect(obs.x - obs.w/2, obs.y - obs.h/2, obs.w, obs.h, 3);
+    ctx.fill();
+    ctx.strokeStyle = '#90a4ae';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
+
+  // 플레이어
+  const grad = ctx.createRadialGradient(player.x-4, player.y-4, 2, player.x, player.y, player.r);
+  grad.addColorStop(0, '#e1f5fe');
+  grad.addColorStop(0.6, '#4fc3f7');
+  grad.addColorStop(1, '#0277bd');
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.strokeStyle = '#80d8ff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // 글로우
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, player.r + 6, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(79,195,247,0.3)';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  ctx.restore();
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener('resize', resize);
+resize();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

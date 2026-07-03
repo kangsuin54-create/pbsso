@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>만능 열쇠</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Arial', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    user-select: none;
+  }
+  h1 { font-size: 20px; color: #f4c95d; margin-bottom: 6px; }
+  p { font-size: 13px; color: #aaa; margin-bottom: 30px; }
+  #key-display {
+    font-size: 90px;
+    margin-bottom: 24px;
+    transition: filter 0.1s, transform 0.1s;
+    cursor: pointer;
+  }
+  #key-display.tap {
+    filter: drop-shadow(0 0 20px #f4c95d);
+    transform: scale(1.15);
+  }
+  #gauge-wrap {
+    width: 280px; height: 28px;
+    background: #1a2040;
+    border-radius: 14px;
+    border: 2px solid #f4c95d;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  #gauge-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #f4c95d, #ff9800);
+    border-radius: 14px;
+    transition: width 0.15s ease;
+  }
+  #tap-count { font-size: 15px; color: #f4c95d; margin-bottom: 24px; }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10,14,39,0.92);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 28px; color: #f4c95d; margin-bottom: 16px; text-align: center; }
+  #overlay p { font-size: 15px; color: #ccc; margin-bottom: 24px; }
+  .btn {
+    background: #f4c95d; color: #0a0e27;
+    border: none; border-radius: 24px;
+    padding: 12px 32px; font-size: 16px; font-weight: bold;
+    cursor: pointer;
+  }
+  #tap-btn {
+    width: 100px; height: 100px; border-radius: 50%;
+    background: linear-gradient(135deg, #f4c95d, #ff9800);
+    border: none; font-size: 32px;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(244,201,93,0.4);
+    transition: transform 0.1s;
+    touch-action: manipulation;
+  }
+  #tap-btn:active { transform: scale(0.92); }
+  #hint { font-size: 13px; color: #aaa; margin-top: 12px; }
+</style>
+</head>
+<body>
+<h1>🔑 만능 열쇠</h1>
+<p>버튼을 30번 탭해서 열쇠를 변환하세요!</p>
+<div id="key-display">🔑</div>
+<div id="gauge-wrap"><div id="gauge-fill"></div></div>
+<div id="tap-count"><span id="current">0</span> / 30</div>
+<button id="tap-btn" ontouchstart="handleTap(event)" onmousedown="handleTap(event)">👆</button>
+<div id="hint">💡 계속 탭하면 열쇠가 빛나요!</div>
+
+<div id="overlay">
+  <h2 id="overlayTitle"></h2>
+  <p id="overlayMsg"></p>
+  <button class="btn" id="overlayBtn">다시 도전! 💪</button>
+</div>
+
+<script>
+const keyDisplay = document.getElementById('key-display');
+const gaugeFill = document.getElementById('gauge-fill');
+const currentEl = document.getElementById('current');
+const overlay = document.getElementById('overlay');
+const overlayTitle = document.getElementById('overlayTitle');
+const overlayMsg = document.getElementById('overlayMsg');
+const overlayBtn = document.getElementById('overlayBtn');
+
+let taps = 0;
+const MAX = 30;
+let done = false;
+let lastTap = 0;
+
+function handleTap(e) {
+  e.preventDefault();
+  if (done) return;
+  const now = Date.now();
+  if (now - lastTap < 100) return; // debounce
+  lastTap = now;
+
+  taps++;
+  currentEl.textContent = taps;
+  const pct = (taps / MAX) * 100;
+  gaugeFill.style.width = pct + '%';
+
+  // 빛 효과
+  keyDisplay.classList.add('tap');
+  setTimeout(() => keyDisplay.classList.remove('tap'), 150);
+
+  // 단계별 이모지 변화
+  if (taps >= MAX * 0.33 && taps < MAX * 0.66) {
+    keyDisplay.textContent = '✨🔑✨';
+  } else if (taps >= MAX * 0.66 && taps < MAX) {
+    keyDisplay.textContent = '🌟🔑🌟';
+  }
+
+  if (taps >= MAX) {
+    done = true;
+    keyDisplay.textContent = '🔓';
+    gaugeFill.style.background = 'linear-gradient(90deg, #4fc3f7, #00e676)';
+
+    setTimeout(() => {
+      overlayTitle.textContent = '딱 맞아! ✨';
+      overlayMsg.textContent = '열쇠가 마침내 자물쇠를 열었어요!';
+      overlayBtn.style.display = 'none';
+      overlay.classList.add('show');
+      window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+    }, 800);
+  }
+}
+
+overlayBtn.addEventListener('click', () => {
+  taps = 0;
+  done = false;
+  currentEl.textContent = 0;
+  gaugeFill.style.width = '0%';
+  gaugeFill.style.background = 'linear-gradient(90deg, #f4c95d, #ff9800)';
+  keyDisplay.textContent = '🔑';
+  overlay.classList.remove('show');
+  overlayBtn.style.display = 'block';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>레드라이트</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Arial', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    user-select: none;
+  }
+  h1 { font-size: 20px; color: #f4c95d; margin-bottom: 4px; }
+  #subtitle { font-size: 12px; color: #aaa; margin-bottom: 20px; }
+  #traffic-light {
+    width: 70px; background: #1a1a1a; border-radius: 10px;
+    padding: 10px; display: flex; flex-direction: column;
+    align-items: center; gap: 8px; margin: 0 auto 16px;
+    border: 2px solid #333;
+  }
+  .light {
+    width: 44px; height: 44px; border-radius: 50%;
+    transition: box-shadow 0.3s;
+  }
+  #red-light { background: #5c1c1c; }
+  #red-light.on { background: #e53935; box-shadow: 0 0 18px #e53935; }
+  #green-light { background: #1b5e20; }
+  #green-light.on { background: #66bb6a; box-shadow: 0 0 18px #66bb6a; }
+  #track {
+    width: 90vw; max-width: 340px; height: 60px;
+    background: #1a2040;
+    border-radius: 10px;
+    position: relative;
+    border: 2px solid #2a3060;
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  #character {
+    position: absolute;
+    font-size: 36px;
+    top: 50%; transform: translateY(-50%);
+    left: 10px;
+    transition: left 0.15s linear;
+  }
+  #target-flag {
+    position: absolute;
+    font-size: 28px;
+    top: 50%; transform: translateY(-50%);
+    right: 8px;
+  }
+  #move-btn {
+    width: 100px; height: 100px; border-radius: 50%;
+    background: linear-gradient(135deg, #66bb6a, #1b5e20);
+    border: none; font-size: 30px;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(102,187,106,0.4);
+    margin-bottom: 14px;
+  }
+  #move-btn:active { transform: scale(0.92); }
+  #status-text { font-size: 16px; color: #f4c95d; min-height: 24px; margin-bottom: 8px; }
+  #success-count { font-size: 14px; color: #aaa; }
+  #warning { font-size: 18px; color: #e53935; min-height: 28px; }
+  #stop-bar-wrap {
+    width: 180px; height: 14px; background: #1a2040;
+    border-radius: 7px; border: 1px solid #444;
+    overflow: hidden; margin-bottom: 8px; display: none;
+  }
+  #stop-bar { height: 100%; width: 0%; background: #4fc3f7; transition: width 0.1s linear; }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10,14,39,0.92);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 26px; color: #f4c95d; margin-bottom: 16px; text-align: center; }
+  #overlay p { font-size: 14px; color: #ccc; margin-bottom: 24px; }
+  .btn {
+    background: #f4c95d; color: #0a0e27;
+    border: none; border-radius: 24px;
+    padding: 12px 32px; font-size: 16px; font-weight: bold;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<h1>🚦 레드라이트</h1>
+<div id="subtitle">초록불에만 이동, 빨간불엔 정지!</div>
+<div id="traffic-light">
+  <div class="light" id="red-light"></div>
+  <div class="light" id="green-light"></div>
+</div>
+<div id="track">
+  <div id="character">🧙</div>
+  <div id="target-flag">🏁</div>
+</div>
+<div id="status-text">준비 중...</div>
+<div id="stop-bar-wrap"><div id="stop-bar"></div></div>
+<div id="warning"></div>
+<button id="move-btn" ontouchstart="pressMove(event)" ontouchend="releaseMove(event)"
+        onmousedown="pressMove(event)" onmouseup="releaseMove(event)">🏃</button>
+<div id="success-count">정지 성공: <span id="successNum">0</span> / 3</div>
+
+<div id="overlay">
+  <h2 id="overlayTitle"></h2>
+  <p id="overlayMsg"></p>
+  <button class="btn" id="overlayBtn">다시 도전! 💪</button>
+</div>
+
+<script>
+const redLight = document.getElementById('red-light');
+const greenLight = document.getElementById('green-light');
+const character = document.getElementById('character');
+const statusText = document.getElementById('status-text');
+const warningEl = document.getElementById('warning');
+const successNumEl = document.getElementById('successNum');
+const stopBarWrap = document.getElementById('stop-bar-wrap');
+const stopBar = document.getElementById('stop-bar');
+const overlay = document.getElementById('overlay');
+
+let isGreen = false;
+let isHolding = false;
+let charLeft = 10;
+let successCount = 0;
+let stopDuration = 0;
+let redTimer = null;
+let cycleTimer = null;
+let gameRunning = false;
+let lastTs = 0;
+let animId;
+const TRACK_MAX = 85; // vw percent * something
+const TRACK_W = () => document.getElementById('track').clientWidth - 60;
+
+function setLight(green) {
+  isGreen = green;
+  if (green) {
+    greenLight.classList.add('on');
+    redLight.classList.remove('on');
+    statusText.textContent = '🟢 이동 버튼을 눌러 이동!';
+    stopBarWrap.style.display = 'none';
+    stopBar.style.width = '0%';
+    stopDuration = 0;
+    warningEl.textContent = '';
+  } else {
+    redLight.classList.add('on');
+    greenLight.classList.remove('on');
+    statusText.textContent = '🔴 손을 떼고 정지하세요!';
+    stopBarWrap.style.display = 'block';
+    stopDuration = 0;
+  }
+}
+
+function pressMoveInner() {
+  if (!gameRunning) return;
+  isHolding = true;
+  if (!isGreen) {
+    warningEl.textContent = '⚠️ 빨간불이에요!';
+    setTimeout(() => { if (!isGreen) warningEl.textContent = ''; }, 800);
+  }
+}
+function releaseMoveInner() {
+  isHolding = false;
+}
+
+function pressMove(e) {
+  e.preventDefault();
+  pressMoveInner();
+}
+function releaseMove(e) {
+  e.preventDefault();
+  releaseMoveInner();
+}
+
+function nextCycle() {
+  if (!gameRunning) return;
+  const greenTime = 2000 + Math.random() * 1000;
+  const redTime = 4000;
+  setLight(true);
+  cycleTimer = setTimeout(() => {
+    setLight(false);
+    redTimer = setTimeout(() => {
+      nextCycle();
+    }, redTime);
+  }, greenTime);
+}
+
+function gameLoop(ts) {
+  if (!gameRunning) return;
+  const dt = lastTs ? (ts - lastTs) / 1000 : 0;
+  lastTs = ts;
+
+  if (isHolding && isGreen) {
+    charLeft = Math.min(charLeft + 120 * dt, TRACK_W());
+    character.style.left = charLeft + 'px';
+  }
+
+  if (!isGreen) {
+    if (!isHolding) {
+      stopDuration += dt;
+      const pct = Math.min(100, (stopDuration / 3) * 100);
+      stopBar.style.width = pct + '%';
+      if (stopDuration >= 3) {
+        stopDuration = 0;
+        stopBar.style.width = '0%';
+        successCount++;
+        successNumEl.textContent = successCount;
+        warningEl.textContent = '✅ 잘 멈췄어요!';
+        setTimeout(() => warningEl.textContent = '', 800);
+
+        if (successCount >= 3) {
+          gameRunning = false;
+          clearTimeout(cycleTimer);
+          clearTimeout(redTimer);
+          cancelAnimationFrame(animId);
+          setTimeout(() => {
+            document.getElementById('overlayTitle').textContent = '멈추고 생각해요! 🛑';
+            document.getElementById('overlayMsg').textContent = '3번 모두 잘 정지했어요!';
+            document.getElementById('overlayBtn').style.display = 'none';
+            overlay.classList.add('show');
+            window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+          }, 600);
+          return;
+        }
+      }
+    } else {
+      stopDuration = 0;
+      stopBar.style.width = '0%';
+    }
+  }
+
+  animId = requestAnimationFrame(gameLoop);
+}
+
+function startGame() {
+  gameRunning = true;
+  charLeft = 10;
+  character.style.left = '10px';
+  successCount = 0;
+  successNumEl.textContent = 0;
+  isHolding = false;
+  stopDuration = 0;
+  warningEl.textContent = '';
+  lastTs = 0;
+  overlay.classList.remove('show');
+  document.getElementById('overlayBtn').style.display = 'block';
+  nextCycle();
+  animId = requestAnimationFrame(gameLoop);
+}
+
+document.getElementById('overlayBtn').addEventListener('click', () => {
+  clearTimeout(cycleTimer);
+  clearTimeout(redTimer);
+  cancelAnimationFrame(animId);
+  startGame();
+});
+
+startGame();
+</script>
+</body>
+</html>

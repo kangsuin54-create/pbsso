@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>감정 스캔</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0e27;
+    color: #f4c95d;
+    font-family: 'Arial', sans-serif;
+    width: 100vw; height: 100vh;
+    overflow: hidden;
+    touch-action: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    user-select: none;
+  }
+  h1 { font-size: 20px; color: #f4c95d; margin-bottom: 6px; }
+  #subtitle { font-size: 12px; color: #aaa; margin-bottom: 20px; }
+  #round-display { font-size: 14px; color: #aaa; margin-bottom: 12px; }
+  #emoji-box {
+    font-size: 100px;
+    margin-bottom: 24px;
+    transition: transform 0.3s;
+  }
+  #choices {
+    display: flex; flex-direction: column; gap: 12px;
+    width: 280px;
+  }
+  .choice-btn {
+    padding: 14px; font-size: 17px;
+    background: #1a2040;
+    color: #f4c95d;
+    border: 2px solid #2a3060;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .choice-btn:active { transform: scale(0.96); }
+  .choice-btn.correct { background: #1b5e20; border-color: #66bb6a; color: #fff; }
+  .choice-btn.wrong { background: #7f0000; border-color: #e53935; color: #fff; }
+  #feedback {
+    margin-top: 16px; font-size: 16px; min-height: 24px; text-align: center;
+  }
+  #hint-box {
+    margin-top: 10px;
+    font-size: 13px; color: #aaa;
+    background: rgba(255,255,255,0.05);
+    border-radius: 10px; padding: 8px 16px;
+    max-width: 280px; text-align: center;
+    display: none;
+  }
+  #overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10,14,39,0.92);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  #overlay.show { display: flex; }
+  #overlay h2 { font-size: 26px; color: #f4c95d; margin-bottom: 16px; }
+  #overlay p { font-size: 14px; color: #ccc; margin-bottom: 24px; }
+  .btn {
+    background: #f4c95d; color: #0a0e27;
+    border: none; border-radius: 24px;
+    padding: 12px 32px; font-size: 16px; font-weight: bold;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<h1>🧠 감정 스캔</h1>
+<div id="subtitle">표정을 보고 알맞은 감정을 선택하세요!</div>
+<div id="round-display">라운드 <span id="roundNum">1</span> / 3</div>
+<div id="emoji-box">😢</div>
+<div id="choices"></div>
+<div id="feedback"></div>
+<div id="hint-box" id="hintBox">💡 힌트: 한 번 더 기회가 있어요!</div>
+
+<div id="overlay">
+  <h2 id="overlayTitle"></h2>
+  <p id="overlayMsg"></p>
+  <button class="btn" id="overlayBtn">다시 도전! 💪</button>
+</div>
+
+<script>
+const rounds = [
+  { emoji: '😢', choices: ['슬픔', '화남', '기쁨'], answer: '슬픔' },
+  { emoji: '😡', choices: ['화남', '슬픔', '놀람'], answer: '화남' },
+  { emoji: '😨', choices: ['두려움', '기쁨', '화남'], answer: '두려움' },
+];
+
+let currentRound = 0;
+let gotHint = false;
+let wrongOnce = false;
+let buttonsDisabled = false;
+
+const emojiBox = document.getElementById('emoji-box');
+const choicesEl = document.getElementById('choices');
+const feedbackEl = document.getElementById('feedback');
+const hintBox = document.getElementById('hint-box');
+const roundNumEl = document.getElementById('roundNum');
+const overlay = document.getElementById('overlay');
+
+function renderRound() {
+  const r = rounds[currentRound];
+  emojiBox.textContent = r.emoji;
+  roundNumEl.textContent = currentRound + 1;
+  feedbackEl.textContent = '';
+  hintBox.style.display = 'none';
+  wrongOnce = false;
+  buttonsDisabled = false;
+  choicesEl.innerHTML = '';
+  r.choices.forEach(ch => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = ch;
+    btn.ontouchstart = (e) => { e.preventDefault(); handleChoice(ch, btn, r); };
+    btn.onmousedown = (e) => { handleChoice(ch, btn, r); };
+    choicesEl.appendChild(btn);
+  });
+}
+
+function handleChoice(ch, btn, r) {
+  if (buttonsDisabled) return;
+
+  if (ch === r.answer) {
+    buttonsDisabled = true;
+    btn.classList.add('correct');
+    feedbackEl.textContent = '✅ 정답! 잘 읽었어요!';
+    emojiBox.style.transform = 'scale(1.2)';
+    setTimeout(() => {
+      emojiBox.style.transform = '';
+      currentRound++;
+      if (currentRound >= rounds.length) {
+        // success
+        setTimeout(() => {
+          document.getElementById('overlayTitle').textContent = '감정 전문가! 🌟';
+          document.getElementById('overlayMsg').textContent = '모든 감정을 정확히 읽었어요!';
+          document.getElementById('overlayBtn').style.display = 'none';
+          overlay.classList.add('show');
+          window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+        }, 500);
+      } else {
+        renderRound();
+      }
+    }, 800);
+  } else {
+    btn.classList.add('wrong');
+    if (!wrongOnce) {
+      wrongOnce = true;
+      feedbackEl.textContent = '❌ 틀렸어요. 한 번 더!';
+      hintBox.style.display = 'block';
+      setTimeout(() => {
+        btn.classList.remove('wrong');
+        feedbackEl.textContent = '';
+      }, 800);
+    } else {
+      // second wrong — just shake
+      feedbackEl.textContent = '❌ 정답은 ' + r.answer + '예요!';
+      buttonsDisabled = true;
+      setTimeout(() => {
+        btn.classList.remove('wrong');
+        currentRound++;
+        if (currentRound >= rounds.length) {
+          document.getElementById('overlayTitle').textContent = '아쉬워요! 😅';
+          document.getElementById('overlayMsg').textContent = '감정을 더 잘 읽어봐요!';
+          overlay.classList.add('show');
+        } else {
+          renderRound();
+        }
+      }, 1200);
+    }
+  }
+}
+
+document.getElementById('overlayBtn').addEventListener('click', () => {
+  currentRound = 0;
+  overlay.classList.remove('show');
+  document.getElementById('overlayBtn').style.display = 'block';
+  renderRound();
+});
+
+renderRound();
+</script>
+</body>
+</html>
