@@ -160,7 +160,7 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
     <div style={{
       minHeight: '100vh',
       backgroundImage: stage.backgroundImage
-        ? `linear-gradient(180deg, rgba(10,8,25,0.55) 0%, rgba(10,8,25,0.92) 100%), url(${stage.backgroundImage})`
+        ? `linear-gradient(180deg, rgba(10,8,25,0.25) 0%, rgba(10,8,25,0.75) 100%), url(${stage.backgroundImage})`
         : 'linear-gradient(180deg, #0f0c29 0%, #1a1035 100%)',
       backgroundSize: 'cover', backgroundPosition: 'center',
       padding: `20px ${pad}px 80px`,

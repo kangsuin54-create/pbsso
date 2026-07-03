@@ -63,7 +63,7 @@ export default function NpcDialogueScreen({ stageId, actions, onComplete }) {
 
   const bgStyle = stage.backgroundImage
     ? {
-        backgroundImage: `linear-gradient(180deg, rgba(10,8,25,0.6) 0%, rgba(10,8,25,0.88) 100%), url(${stage.backgroundImage})`,
+        backgroundImage: `linear-gradient(180deg, rgba(10,8,25,0.3) 0%, rgba(10,8,25,0.78) 100%), url(${stage.backgroundImage})`,
         backgroundSize: 'cover', backgroundPosition: 'center',
       }
     : { background: 'linear-gradient(180deg, #0f0c29 0%, #1a1035 100%)' }

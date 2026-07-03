@@ -21,10 +21,11 @@ function Door({ stage, cleared, locked, onClick }) {
       <div style={{
         width: '100%', height: '170px', borderRadius: '8px 8px 4px 4px',
         background: cleared
-          ? `linear-gradient(180deg, ${stage.monster.color}, ${stage.monster.color}cc)`
+          ? `linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.55)), url(${stage.backgroundImage})`
           : locked
             ? 'linear-gradient(180deg, #3f3f46, #27272a)'
-            : `linear-gradient(180deg, ${stage.monster.darkColor}, #1a1035)`,
+            : `linear-gradient(180deg, rgba(0,0,0,0.4), rgba(0,0,0,0.65)), url(${stage.backgroundImage})`,
+        backgroundSize: 'cover', backgroundPosition: 'center',
         border: `3px solid ${cleared ? '#fde68a' : locked ? '#52525b' : stage.monster.color + '80'}`,
         boxShadow: cleared
           ? `0 0 24px ${stage.monster.color}aa`
