@@ -13,13 +13,21 @@
     width: 100vw; height: 100vh;
     overflow: hidden;
     touch-action: none;
-    display: flex; flex-direction: column; align-items: center;
     user-select: none;
   }
-  #header { padding: 14px; text-align: center; }
+  #header {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: 14px; text-align: center;
+    z-index: 10; pointer-events: none;
+    background: rgba(10,14,39,0.7);
+  }
   h1 { font-size: 18px; color: #f4c95d; }
   p { font-size: 12px; color: #aaa; margin-top: 4px; }
-  #canvas { display: block; }
+  #canvas {
+    position: fixed; top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    display: block;
+  }
   #overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(10,14,39,0.92);
@@ -66,7 +74,7 @@ let rainbow = 0;
 
 function resize() {
   W = canvas.width = window.innerWidth;
-  H = canvas.height = window.innerHeight - 70;
+  H = canvas.height = window.innerHeight;
   cx = W / 2;
   cy = H / 2;
   initPieces();
@@ -84,8 +92,7 @@ function initPieces() {
 
 function getPos(e) {
   const t = e.touches ? e.touches[0] : e;
-  const rect = canvas.getBoundingClientRect();
-  return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+  return { x: t.clientX, y: t.clientY };
 }
 
 function onStart(e) {
@@ -106,8 +113,8 @@ function onMove(e) {
   e.preventDefault();
   if (!dragging) return;
   const p = getPos(e);
-  dragging.x = p.x - dragOffX;
-  dragging.y = p.y - dragOffY;
+  dragging.x = Math.max(dragging.r, Math.min(W - dragging.r, p.x - dragOffX));
+  dragging.y = Math.max(dragging.r, Math.min(H - dragging.r, p.y - dragOffY));
 }
 
 function onEnd(e) {

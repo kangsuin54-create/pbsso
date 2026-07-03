@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>나비 포옹법</title>
+<title>따뜻한 보호막</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -13,81 +13,25 @@
     width: 100vw; height: 100vh;
     overflow: hidden;
     touch-action: none;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 24px;
-    padding: 24px;
     user-select: none;
-    transition: background 1.2s;
   }
-  body.calm1 { background: #0d1a2e; }
-  body.calm2 { background: #1a1020; }
-  body.calm3 { background: #1a2030; }
-  h1 { font-size: 1.4rem; text-align: center; }
-  .subtitle { font-size: 0.85rem; color: #aaa; text-align: center; }
-  .gauge-wrap {
-    width: 240px;
-    position: relative;
+  #gameCanvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
   }
-  .gauge-label { font-size: 0.82rem; color: #aaa; margin-bottom: 6px; text-align: center; }
-  .gauge-bar-bg {
-    height: 18px;
-    background: #12183a;
-    border-radius: 10px;
-    overflow: hidden;
-    border: 1px solid #2a3060;
+  .ui-top {
+    position: fixed; top: 0; left: 0; right: 0;
+    text-align: center; padding: 14px;
+    z-index: 10; pointer-events: none;
   }
-  .gauge-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #e91e8c, #f4c95d);
-    border-radius: 10px;
-    transition: width 0.4s ease;
+  .ui-top h1 { font-size: 1.2rem; color: #f4c95d; }
+  .ui-top p  { font-size: 0.8rem; color: #aaa; margin-top: 4px; }
+  .progress-row {
+    position: fixed; bottom: 14px; left: 0; right: 0;
+    text-align: center; font-size: 0.85rem; color: #aaa;
+    pointer-events: none; z-index: 10;
   }
-  .char-area {
-    position: relative;
-    width: 180px; height: 180px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .char-body {
-    font-size: 4.5rem;
-    position: relative; z-index: 2;
-  }
-  .arm-left, .arm-right {
-    position: absolute;
-    font-size: 2.2rem;
-    z-index: 3;
-    top: 52%;
-    transition: transform 0.25s ease;
-  }
-  .arm-left  { left:  8px;  transform-origin: right center; }
-  .arm-right { right: 8px; transform-origin: left center; }
-  .arm-left.pat  { animation: patLeft  0.35s ease; }
-  .arm-right.pat { animation: patRight 0.35s ease; }
-  @keyframes patLeft  {
-    0%,100% { transform: rotate(0deg); }
-    50%  { transform: rotate(-20deg) translateY(-8px); }
-  }
-  @keyframes patRight {
-    0%,100% { transform: rotate(0deg); }
-    50%  { transform: rotate(20deg) translateY(-8px); }
-  }
-  .tap-count { font-size: 0.88rem; color: #aaa; }
-  .btn-tap {
-    padding: 16px 40px;
-    background: linear-gradient(135deg, #f4c95d, #e67e22);
-    color: #0a0e27;
-    border: none;
-    border-radius: 14px;
-    font-size: 1.2rem;
-    font-weight: bold;
-    cursor: pointer;
-    touch-action: auto;
-    -webkit-tap-highlight-color: transparent;
-    box-shadow: 0 4px 16px rgba(244,201,93,0.4);
-  }
-  .btn-tap:active { opacity: 0.8; }
   .success-overlay {
     display: none;
     position: fixed; inset: 0;
@@ -110,70 +54,193 @@
     cursor: pointer;
     touch-action: auto;
   }
+  .glow-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: radial-gradient(circle, rgba(244,201,93,0.18) 0%, transparent 70%);
+    z-index: 5; pointer-events: none;
+    animation: glowPulse 1.5s ease infinite;
+  }
+  .glow-overlay.show { display: block; }
+  @keyframes glowPulse {
+    0%,100% { opacity: 0.5; }
+    50%  { opacity: 1; }
+  }
 </style>
 </head>
-<body id="bodyEl">
-<h1>🦋 나비 포옹법</h1>
-<p class="subtitle">"토닥" 버튼을 3번 탭해서 긴장을 풀어요!</p>
-<div class="gauge-wrap">
-  <div class="gauge-label">긴장 수치</div>
-  <div class="gauge-bar-bg">
-    <div class="gauge-bar-fill" id="gaugeFill" style="width:100%"></div>
-  </div>
+<body>
+<div class="ui-top">
+  <h1>🛡️ 따뜻한 보호막</h1>
+  <p>흩어진 조각을 드래그해서 캐릭터를 감싸줘요!</p>
 </div>
-<div class="char-area">
-  <span class="arm-left" id="armLeft">🤲</span>
-  <span class="char-body">🧙</span>
-  <span class="arm-right" id="armRight">🤲</span>
-</div>
-<div class="tap-count" id="tapCount">토닥: 0 / 3번</div>
-<button class="btn-tap" id="tapBtn">🤗 토닥</button>
+<canvas id="gameCanvas"></canvas>
+<div class="progress-row" id="progressRow">완성: 0 / 4</div>
+<div class="glow-overlay" id="glowOverlay"></div>
 <div class="success-overlay" id="successOverlay">
-  <div style="font-size:3rem;">🦋</div>
-  <div class="success-msg">긴장이 풀렸어요! 🦋<br>나비처럼 가벼워졌어요!</div>
+  <div style="font-size:3rem;">🛡️</div>
+  <div class="success-msg">보호막 완성! ✨<br>따뜻하게 감싸졌어요!</div>
   <button class="btn-retry" onclick="resetGame()">다시 도전! 💪</button>
 </div>
 <script>
-  let taps = 0, MAX = 3, side = 0, locked = false;
-  const calmClasses = ['calm1','calm2','calm3'];
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, pieces, slots, dragging, dragOX, dragOY, snapped, completed;
+  const SNAP_DIST = 55;
+  const COLORS = ['#e74c3c','#3498db','#2ecc71','#9b59b6'];
 
-  function pat() {
-    if (locked) return;
-    taps++;
-    const pct = Math.max(0, 100 - taps*(100/MAX));
-    document.getElementById('gaugeFill').style.width = pct + '%';
-    document.getElementById('tapCount').textContent = `토닥: ${taps} / ${MAX}번`;
-    const body = document.getElementById('bodyEl');
-    body.className = calmClasses[taps-1] || '';
+  // 4 shield segments = quarters of a ring
+  function getSlotPos(i, cx, cy, R) {
+    const angles = [[-Math.PI/2,0],[0,Math.PI/2],[Math.PI/2,Math.PI],[Math.PI,3*Math.PI/2]];
+    const [a1,a2] = angles[i];
+    const mid = (a1+a2)/2;
+    return { x: cx + Math.cos(mid)*R, y: cy + Math.sin(mid)*R };
+  }
 
-    const arm = side === 0 ? document.getElementById('armLeft') : document.getElementById('armRight');
-    arm.classList.remove('pat');
-    void arm.offsetWidth;
-    arm.classList.add('pat');
-    side = 1 - side;
+  function init() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    snapped = 0; completed = false;
+    const cx = W/2, cy = H/2;
+    const R = Math.min(W,H)*0.28;
+    const pw = 52, ph = 52;
 
-    if (taps >= MAX) {
-      locked = true;
-      setTimeout(() => {
-        document.getElementById('successOverlay').classList.add('show');
-        window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
-      }, 700);
+    slots = Array.from({length:4}, (_,i) => {
+      const pos = getSlotPos(i, cx, cy, R);
+      return { x:pos.x, y:pos.y, w:pw, h:ph, i, filled:false };
+    });
+
+    // scatter pieces far from center
+    const scatterPts = [
+      {x:W*0.1, y:H*0.2}, {x:W*0.82,y:H*0.18},
+      {x:W*0.1, y:H*0.78},{x:W*0.80,y:H*0.78}
+    ];
+    pieces = Array.from({length:4}, (_,i) => ({
+      x: scatterPts[i].x - pw/2,
+      y: scatterPts[i].y - ph/2,
+      w: pw, h: ph, i, snapped: false,
+      color: COLORS[i], label: ['↗','↘','↙','↖'][i]
+    }));
+    dragging = null;
+    document.getElementById('progressRow').textContent = '완성: 0 / 4';
+    draw();
+  }
+
+  function draw() {
+    ctx.clearRect(0,0,W,H);
+    const cx=W/2, cy=H/2;
+    const R = Math.min(W,H)*0.28;
+
+    // draw broken ring slots
+    slots.forEach((s,i) => {
+      const angles = [[-Math.PI/2,0],[0,Math.PI/2],[Math.PI/2,Math.PI],[Math.PI,3*Math.PI/2]];
+      const [a1,a2] = angles[i];
+      ctx.beginPath();
+      ctx.arc(cx,cy,R,a1,a2);
+      ctx.strokeStyle = s.filled ? COLORS[i] : '#2a3060';
+      ctx.lineWidth = s.filled ? 14 : 7;
+      ctx.stroke();
+    });
+
+    // character
+    ctx.font = `${Math.min(W,H)*0.14}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🧙', cx, cy);
+
+    // snap slot guides
+    slots.forEach(s => {
+      if (s.filled) return;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 26, 0, Math.PI*2);
+      ctx.strokeStyle = '#f4c95d44';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5,4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    });
+
+    // pieces (not snapped)
+    pieces.forEach(p => {
+      if (p.snapped) return;
+      ctx.save();
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.roundRect(p.x, p.y, p.w, p.h, 12);
+      ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 18px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(p.label, p.x+p.w/2, p.y+p.h/2);
+    });
+  }
+
+  function getPos(e) {
+    const t = e.touches ? e.touches[0] : e;
+    return {x: t.clientX, y: t.clientY};
+  }
+
+  function startDrag(e) {
+    const pos = getPos(e);
+    for (let i=pieces.length-1;i>=0;i--) {
+      const p = pieces[i];
+      if (p.snapped) continue;
+      if (pos.x>=p.x&&pos.x<=p.x+p.w&&pos.y>=p.y&&pos.y<=p.y+p.h) {
+        dragging=p; dragOX=pos.x-p.x; dragOY=pos.y-p.y;
+        pieces.splice(i,1); pieces.push(dragging);
+        break;
+      }
     }
   }
 
-  function resetGame() {
-    taps = 0; side = 0; locked = false;
-    document.getElementById('gaugeFill').style.width = '100%';
-    document.getElementById('tapCount').textContent = '토닥: 0 / 3번';
-    document.getElementById('bodyEl').className = '';
-    document.getElementById('armLeft').classList.remove('pat');
-    document.getElementById('armRight').classList.remove('pat');
-    document.getElementById('successOverlay').classList.remove('show');
+  function moveDrag(e) {
+    if (!dragging) return;
+    e.preventDefault();
+    const pos = getPos(e);
+    dragging.x = Math.max(0, Math.min(W - dragging.w, pos.x - dragOX));
+    dragging.y = Math.max(0, Math.min(H - dragging.h, pos.y - dragOY));
+    draw();
   }
 
-  const btn = document.getElementById('tapBtn');
-  btn.addEventListener('click', pat);
-  btn.addEventListener('touchend', e => { e.preventDefault(); pat(); }, {passive:false});
+  function endDrag() {
+    if (!dragging) return;
+    const s = slots[dragging.i];
+    const cx = dragging.x+dragging.w/2;
+    const cy = dragging.y+dragging.h/2;
+    if (Math.hypot(cx-s.x, cy-s.y) < SNAP_DIST) {
+      dragging.snapped = true;
+      slots[dragging.i].filled = true;
+      snapped++;
+      document.getElementById('progressRow').textContent = `완성: ${snapped} / 4`;
+      if (snapped >= 4) {
+        completed = true;
+        document.getElementById('glowOverlay').classList.add('show');
+        setTimeout(() => {
+          document.getElementById('successOverlay').classList.add('show');
+          window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+        }, 900);
+      }
+    }
+    dragging = null; draw();
+  }
+
+  function resetGame() {
+    document.getElementById('successOverlay').classList.remove('show');
+    document.getElementById('glowOverlay').classList.remove('show');
+    init();
+  }
+
+  canvas.addEventListener('mousedown', startDrag);
+  canvas.addEventListener('mousemove', moveDrag);
+  canvas.addEventListener('mouseup', endDrag);
+  canvas.addEventListener('touchstart', startDrag, {passive:true});
+  canvas.addEventListener('touchmove', moveDrag, {passive:false});
+  canvas.addEventListener('touchend', endDrag);
+  window.addEventListener('resize', init);
+  init();
 </script>
 </body>
 </html>

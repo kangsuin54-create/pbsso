@@ -16,9 +16,9 @@
     user-select: none;
   }
   #gameCanvas {
-    position: absolute;
+    position: fixed;
     top: 0; left: 0;
-    width: 100%; height: 100%;
+    width: 100vw; height: 100vh;
   }
   .ui-top {
     position: fixed;
@@ -198,8 +198,9 @@
     if (!dragging) return;
     e.preventDefault();
     const pos = getPos(e);
-    dragging.x = pos.x - dragOffX;
-    dragging.y = pos.y - dragOffY;
+    const r = dragging.w / 2;
+    dragging.x = Math.max(0, Math.min(W - dragging.w, pos.x - dragOffX));
+    dragging.y = Math.max(0, Math.min(H - dragging.h, pos.y - dragOffY));
     draw();
   }
 

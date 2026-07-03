@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>감정 이름표</title>
+<title>6초의 마법</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -13,62 +13,46 @@
     width: 100vw; height: 100vh;
     overflow: hidden;
     touch-action: none;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
     user-select: none;
   }
-  h1 { font-size: 20px; color: #f4c95d; margin-bottom: 4px; }
-  #subtitle { font-size: 12px; color: #aaa; margin-bottom: 16px; }
-  #match-count { font-size: 14px; color: #aaa; margin-bottom: 16px; }
-  #grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    width: min(360px, 96vw);
+  #header {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: 10px; text-align: center; z-index: 20;
+    background: rgba(10,14,39,0.85);
+    pointer-events: none;
   }
-  .card {
-    aspect-ratio: 1;
-    background: #1a2040;
-    border: 2px solid #2a3060;
-    border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 28px;
-    cursor: pointer;
-    transition: all 0.3s;
-    position: relative;
-    overflow: hidden;
+  h1 { font-size: 18px; color: #f4c95d; }
+  #subtitle { font-size: 11px; color: #aaa; }
+  #anger-wrap {
+    position: fixed; top: 52px; left: 16px; right: 16px; z-index: 15;
+    display: flex; flex-direction: column; gap: 4px;
+    pointer-events: none;
   }
-  .card .front { display: none; }
-  .card .back { display: flex; align-items: center; justify-content: center; font-size: 24px; color: #f4c95d; font-weight: bold; }
-  .card.flipped .front { display: flex; }
-  .card.flipped .back { display: none; }
-  .card.flipped {
-    background: #0d1a3a;
-    border-color: #f4c95d;
+  #anger-label {
+    font-size: 12px; color: #e53935; font-weight: bold;
+    display: flex; justify-content: space-between;
   }
-  .card.matched {
-    background: #1b5e20;
-    border-color: #66bb6a;
-    cursor: default;
-    animation: matchPop 0.4s ease;
+  #anger-bar-bg {
+    height: 18px; background: #1a0a0a;
+    border-radius: 9px; border: 1px solid #e53935; overflow: hidden;
   }
-  .card.matched .front { display: flex; }
-  .card.matched .back { display: none; }
-  .card.wrong {
-    animation: wrongShake 0.4s ease;
-    border-color: #e53935;
-    background: #4a0000;
+  #anger-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #ff9800, #e53935);
+    border-radius: 9px;
+    transition: width 0.1s linear;
   }
-  @keyframes matchPop {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.15); }
-    100% { transform: scale(1); }
+  #canvas {
+    position: fixed; top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    display: block;
   }
-  @keyframes wrongShake {
-    0%,100% { transform: translateX(0); }
-    25% { transform: translateX(-6px); }
-    75% { transform: translateX(6px); }
+  #next-label {
+    position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+    font-size: 16px; color: #f4c95d;
+    background: rgba(0,0,0,0.5); padding: 6px 16px; border-radius: 12px;
+    z-index: 15; pointer-events: none;
   }
-  #feedback { font-size: 16px; margin-top: 16px; min-height: 24px; text-align: center; }
   #overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(10,14,39,0.92);
@@ -77,7 +61,7 @@
     z-index: 100;
   }
   #overlay.show { display: flex; }
-  #overlay h2 { font-size: 26px; color: #f4c95d; margin-bottom: 16px; }
+  #overlay h2 { font-size: 26px; color: #f4c95d; margin-bottom: 16px; text-align: center; }
   #overlay p { font-size: 14px; color: #ccc; margin-bottom: 24px; }
   .btn {
     background: #f4c95d; color: #0a0e27;
@@ -88,11 +72,19 @@
 </style>
 </head>
 <body>
-<h1>🃏 감정 이름표</h1>
-<div id="subtitle">같은 감정 이모지 ↔ 이름 짝을 찾아요!</div>
-<div id="match-count">매칭: <span id="matchNum">0</span> / 4</div>
-<div id="grid"></div>
-<div id="feedback"></div>
+<div id="header">
+  <h1>😤 6초의 마법</h1>
+  <div id="subtitle">화 게이지 가득 차기 전에 1→6 순서로 탭!</div>
+</div>
+<div id="anger-wrap">
+  <div id="anger-label">
+    <span>화 게이지</span>
+    <span id="timer-text">5.0s</span>
+  </div>
+  <div id="anger-bar-bg"><div id="anger-bar" style="width:0%"></div></div>
+</div>
+<canvas id="canvas"></canvas>
+<div id="next-label">다음: <span id="nextNum">1</span></div>
 
 <div id="overlay">
   <h2 id="overlayTitle"></h2>
@@ -101,135 +93,169 @@
 </div>
 
 <script>
-const PAIRS = [
-  { id: 'joy', emoji: '😊', name: '기쁨' },
-  { id: 'sad', emoji: '😢', name: '슬픔' },
-  { id: 'ang', emoji: '😡', name: '화남' },
-  { id: 'fea', emoji: '😨', name: '두려움' },
-];
-
-let flipped = [];
-let matched = 0;
-let locked = false;
-let cards = [];
-const matchNumEl = document.getElementById('matchNum');
-const feedbackEl = document.getElementById('feedback');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const angerBar = document.getElementById('anger-bar');
+const timerText = document.getElementById('timer-text');
+const nextNumEl = document.getElementById('nextNum');
 const overlay = document.getElementById('overlay');
 
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+let W, H;
+let numbers = [];
+let lines = [];
+let nextExpected = 1;
+let timeLeft = 5;
+let gameOver = false;
+let animId;
+let lastTs = 0;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+
+function initGame() {
+  numbers = [];
+  lines = [];
+  nextExpected = 1;
+  timeLeft = 5;
+  gameOver = false;
+  lastTs = 0;
+  angerBar.style.width = '0%';
+  timerText.textContent = '5.0s';
+  nextNumEl.textContent = 1;
+  overlay.classList.remove('show');
+  document.getElementById('overlayBtn').style.display = 'block';
+
+  const margin = 60;
+  const top = 120;
+  const bottom = H - 60;
+  for (let i = 1; i <= 6; i++) {
+    numbers.push({
+      num: i,
+      x: margin + Math.random() * (W - margin * 2),
+      y: top + Math.random() * (bottom - top),
+      tapped: false,
+    });
   }
-  return a;
 }
 
-function buildCards() {
-  const items = [];
-  PAIRS.forEach(p => {
-    items.push({ id: p.id, type: 'emoji', display: p.emoji });
-    items.push({ id: p.id, type: 'name', display: p.name });
-  });
-  return shuffle(items);
+function getPos(e) {
+  const t = e.touches ? e.touches[0] : e;
+  return { x: t.clientX, y: t.clientY };
 }
 
-function renderGrid() {
-  const grid = document.getElementById('grid');
-  grid.innerHTML = '';
-  cards = buildCards();
-  flipped = [];
-  matched = 0;
-  locked = false;
-  matchNumEl.textContent = 0;
-  feedbackEl.textContent = '';
+function onTap(e) {
+  e.preventDefault();
+  if (gameOver) return;
+  const p = getPos(e);
 
-  cards.forEach((item, i) => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.dataset.index = i;
-    card.dataset.id = item.id;
-    card.dataset.type = item.type;
+  for (const num of numbers) {
+    if (num.tapped) continue;
+    if (num.num !== nextExpected) continue;
+    const dx = p.x - num.x, dy = p.y - num.y;
+    if (Math.sqrt(dx*dx+dy*dy) < 30) {
+      num.tapped = true;
+      if (nextExpected > 1) {
+        const prev = numbers.find(n => n.num === nextExpected - 1);
+        lines.push({ x1: prev.x, y1: prev.y, x2: num.x, y2: num.y });
+      }
+      nextExpected++;
+      nextNumEl.textContent = nextExpected <= 6 ? nextExpected : '✅';
 
-    const front = document.createElement('div');
-    front.className = 'front';
-    front.textContent = item.display;
-    front.style.fontSize = item.type === 'emoji' ? '30px' : '13px';
-
-    const back = document.createElement('div');
-    back.className = 'back';
-    back.textContent = '?';
-
-    card.appendChild(front);
-    card.appendChild(back);
-
-    card.ontouchstart = (e) => { e.preventDefault(); flipCard(i); };
-    card.onmousedown = () => flipCard(i);
-    grid.appendChild(card);
-  });
-}
-
-function flipCard(index) {
-  if (locked) return;
-  if (cards[index].matched) return;
-
-  const cardEls = document.querySelectorAll('.card');
-  const cardEl = cardEls[index];
-
-  if (cardEl.classList.contains('flipped') || cardEl.classList.contains('matched')) return;
-
-  cardEl.classList.add('flipped');
-  flipped.push(index);
-
-  if (flipped.length === 2) {
-    locked = true;
-    const [a, b] = flipped;
-    const ca = cards[a], cb = cards[b];
-
-    if (ca.id === cb.id && ca.type !== cb.type) {
-      // match!
-      matched++;
-      matchNumEl.textContent = matched;
-      feedbackEl.textContent = '✅ 매칭 성공!';
-      cards[a].matched = true;
-      cards[b].matched = true;
-      cardEls[a].classList.add('matched');
-      cardEls[b].classList.add('matched');
-      flipped = [];
-      locked = false;
-
-      if (matched >= 4) {
+      if (nextExpected > 6) {
+        gameOver = true;
+        cancelAnimationFrame(animId);
         setTimeout(() => {
-          document.getElementById('overlayTitle').textContent = '감정 마스터! 🎉';
-          document.getElementById('overlayMsg').textContent = '모든 감정 짝을 찾았어요!';
+          document.getElementById('overlayTitle').textContent = '6초 성공! 🌟';
+          document.getElementById('overlayMsg').textContent = '화를 6초 만에 가라앉혔어요!';
           document.getElementById('overlayBtn').style.display = 'none';
           overlay.classList.add('show');
           window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
-        }, 700);
+        }, 600);
       }
-    } else {
-      // wrong
-      feedbackEl.textContent = '❌ 다른 감정이에요!';
-      cardEls[a].classList.add('wrong');
-      cardEls[b].classList.add('wrong');
-      setTimeout(() => {
-        cardEls[a].classList.remove('flipped', 'wrong');
-        cardEls[b].classList.remove('flipped', 'wrong');
-        feedbackEl.textContent = '';
-        flipped = [];
-        locked = false;
-      }, 800);
+      break;
     }
   }
 }
 
+canvas.addEventListener('touchstart', onTap, { passive: false });
+canvas.addEventListener('mousedown', onTap);
+
+function gameLoop(ts) {
+  if (gameOver) return;
+  const dt = lastTs ? (ts - lastTs) / 1000 : 0.016;
+  lastTs = ts;
+
+  timeLeft -= dt;
+  if (timeLeft <= 0) {
+    timeLeft = 0;
+    gameOver = true;
+    cancelAnimationFrame(animId);
+    document.getElementById('overlayTitle').textContent = '화가 폭발했어요! 😤';
+    document.getElementById('overlayMsg').textContent = '시간 안에 숫자를 탭해요!';
+    overlay.classList.add('show');
+    return;
+  }
+
+  const pct = ((5 - timeLeft) / 5) * 100;
+  angerBar.style.width = pct + '%';
+  timerText.textContent = timeLeft.toFixed(1) + 's';
+
+  // background pulse based on anger
+  const r = Math.floor(10 + pct * 0.3);
+  document.body.style.background = `rgb(${r},14,39)`;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // draw lines
+  lines.forEach(l => {
+    ctx.beginPath();
+    ctx.moveTo(l.x1, l.y1);
+    ctx.lineTo(l.x2, l.y2);
+    ctx.strokeStyle = '#f4c95d';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  });
+
+  // draw numbers
+  numbers.forEach(num => {
+    const r2 = 26;
+    ctx.beginPath();
+    ctx.arc(num.x, num.y, r2, 0, Math.PI * 2);
+    if (num.tapped) {
+      ctx.fillStyle = '#66bb6a';
+    } else if (num.num === nextExpected) {
+      ctx.fillStyle = '#f4c95d';
+    } else {
+      ctx.fillStyle = '#1a2040';
+    }
+    ctx.fill();
+    ctx.strokeStyle = num.tapped ? '#66bb6a' : (num.num === nextExpected ? '#fff' : '#2a3060');
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = num.tapped ? '#fff' : (num.num === nextExpected ? '#0a0e27' : '#aaa');
+    ctx.font = 'bold 20px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(num.num, num.x, num.y);
+  });
+
+  animId = requestAnimationFrame(gameLoop);
+}
+
 document.getElementById('overlayBtn').addEventListener('click', () => {
-  overlay.classList.remove('show');
-  document.getElementById('overlayBtn').style.display = 'block';
-  renderGrid();
+  cancelAnimationFrame(animId);
+  document.body.style.background = '#0a0e27';
+  initGame();
+  animId = requestAnimationFrame(gameLoop);
 });
 
-renderGrid();
+window.addEventListener('resize', resize);
+resize();
+initGame();
+animId = requestAnimationFrame(gameLoop);
 </script>
 </body>
 </html>

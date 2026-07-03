@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>민낯의 용기</title>
+<title>공통점 찾기</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -13,60 +13,24 @@
     width: 100vw; height: 100vh;
     overflow: hidden;
     touch-action: none;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 20px;
-    padding: 24px;
     user-select: none;
   }
-  h1 { font-size: 1.4rem; text-align: center; }
-  .subtitle { font-size: 0.85rem; color: #aaa; text-align: center; }
-  .mask-container {
-    position: relative;
-    width: 160px; height: 160px;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
+  .ui-top {
+    position: fixed; top: 0; left: 0; right: 0;
+    text-align: center; padding: 16px;
+    z-index: 10; pointer-events: none;
   }
-  .mask-emoji {
-    font-size: 7rem;
-    position: relative;
-    z-index: 2;
-    transition: transform 0.08s;
-    pointer-events: none;
+  .ui-top h1 { font-size: 1.2rem; }
+  .ui-top p { font-size: 0.8rem; color: #aaa; margin-top: 4px; }
+  #gameCanvas {
+    position: fixed; top: 0; left: 0;
+    width: 100vw; height: 100vh;
   }
-  .mask-container:active .mask-emoji { transform: scale(0.9); }
-  .crack-svg {
-    position: absolute;
-    inset: 0;
-    z-index: 3;
-    pointer-events: none;
+  .connected-count {
+    position: fixed; bottom: 20px; left: 0; right: 0;
+    text-align: center; font-size: 0.9rem; color: #aaa;
+    pointer-events: none; z-index: 10;
   }
-  .face-behind {
-    position: absolute;
-    font-size: 7rem;
-    opacity: 0;
-    z-index: 1;
-    transition: opacity 0.4s;
-  }
-  .progress-bar-wrap {
-    width: 240px;
-    height: 16px;
-    background: #12183a;
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid #2a3060;
-  }
-  .progress-bar {
-    height: 100%;
-    background: linear-gradient(90deg, #f4c95d, #e67e22);
-    border-radius: 8px;
-    transition: width 0.15s ease;
-  }
-  .progress-text { font-size: 0.85rem; color: #aaa; }
-  .tap-hint { font-size: 0.85rem; color: #888; }
   .success-overlay {
     display: none;
     position: fixed; inset: 0;
@@ -89,109 +53,184 @@
     cursor: pointer;
     touch-action: auto;
   }
-  @keyframes shake {
-    0%,100% { transform: translateX(0); }
-    25%  { transform: translateX(-6px); }
-    75%  { transform: translateX(6px); }
+  .heart {
+    position: fixed;
+    pointer-events: none;
+    font-size: 1.5rem;
+    animation: heartFloat 1s ease forwards;
+    z-index: 50;
   }
-  .shaking { animation: shake 0.18s ease; }
+  @keyframes heartFloat {
+    0%   { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-60px) scale(1.5); }
+  }
 </style>
 </head>
 <body>
-<h1>🎭 민낯의 용기</h1>
-<p class="subtitle">가면을 탭해서 균열을 만들어요!</p>
-<div class="mask-container" id="maskContainer">
-  <div class="face-behind" id="faceBehind">😊</div>
-  <div class="mask-emoji" id="maskEmoji">🎭</div>
-  <svg class="crack-svg" id="crackSvg" viewBox="0 0 160 160" fill="none"></svg>
+<div class="ui-top">
+  <h1>🤝 공통점 찾기</h1>
+  <p>나와 친구가 공통으로 좋아하는 것을 이어봐요!</p>
 </div>
-<div class="progress-bar-wrap">
-  <div class="progress-bar" id="progressBar" style="width:0%"></div>
-</div>
-<div class="progress-text" id="progressText">균열: 0 / 15</div>
-<p class="tap-hint">15번 탭하면 가면이 부서져요!</p>
+<canvas id="gameCanvas"></canvas>
+<div class="connected-count" id="connectedCount">연결: 0개</div>
 <div class="success-overlay" id="successOverlay">
-  <div style="font-size:3.5rem;">😊</div>
-  <div class="success-msg">가면을 벗었어요!<br>용기있는 모습이 빛나요! ✨</div>
+  <div style="font-size:3rem;">❤️</div>
+  <div class="success-msg">공통점을 찾았어요! 🎉<br>우리는 통해요!</div>
   <button class="btn-retry" onclick="resetGame()">다시 도전! 💪</button>
 </div>
 <script>
-  let cracks = 0, MAX = 15, completed = false;
-  const crackLines = [];
-  const svg = document.getElementById('crackSvg');
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H;
 
-  // Web Audio beep
-  let audioCtx;
-  function beep(freq=300, dur=0.06) {
-    try {
-      if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.connect(gain); gain.connect(audioCtx.destination);
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+dur);
-      osc.start(); osc.stop(audioCtx.currentTime+dur);
-    } catch(e) {}
+  const LEFT_ITEMS  = [{emoji:'🍕',id:'pizza'},{emoji:'🎨',id:'art'},{emoji:'⚽',id:'soccer'},{emoji:'🎮',id:'game'}];
+  const RIGHT_ITEMS = [{emoji:'🍕',id:'pizza'},{emoji:'📚',id:'book'},{emoji:'🎨',id:'art'},{emoji:'🎵',id:'music'}];
+  const COMMON = new Set(['pizza','art']);
+  const ITEM_R = 32;
+
+  let leftPos, rightPos, connections, dragging, dragStart, dragEnd, completed;
+
+  function init() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+
+    const topY = H*0.3;
+    const gap  = (H*0.45) / 3;
+    leftPos  = LEFT_ITEMS.map((it,i)=>({...it, x: W*0.2, y: topY+i*gap}));
+    rightPos = RIGHT_ITEMS.map((it,i)=>({...it, x: W*0.8, y: topY+i*gap}));
+    connections = [];
+    dragging = null; dragStart = null; dragEnd = null;
+    completed = false;
+    document.getElementById('connectedCount').textContent = '연결: 0개';
+    draw();
   }
 
-  function addCrack() {
-    if (completed) return;
-    cracks++;
-    beep(200+cracks*10, 0.07);
-    const pct = cracks/MAX;
-    document.getElementById('progressBar').style.width = (pct*100)+'%';
-    document.getElementById('progressText').textContent = `균열: ${cracks} / ${MAX}`;
+  function draw() {
+    ctx.clearRect(0,0,W,H);
 
-    // generate a crack line from center
-    const cx=80, cy=80;
-    const angle = Math.random()*Math.PI*2;
-    const len = 20 + Math.random()*40;
-    const x2 = cx + Math.cos(angle)*len;
-    const y2 = cy + Math.sin(angle)*len;
-    const x3 = x2 + (Math.random()-0.5)*20;
-    const y3 = y2 + (Math.random()-0.5)*20;
-    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-    path.setAttribute('d', `M ${cx} ${cy} L ${x2} ${y2} L ${x3} ${y3}`);
-    path.setAttribute('stroke', `rgba(255,255,255,${0.3+pct*0.5})`);
-    path.setAttribute('stroke-width', '2');
-    path.setAttribute('stroke-linecap', 'round');
-    svg.appendChild(path);
+    // labels
+    ctx.fillStyle = '#f4c95d';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('나 🙋', W*0.2, H*0.22);
+    ctx.fillText('친구 😊', W*0.8, H*0.22);
 
-    const mc = document.getElementById('maskContainer');
-    mc.classList.add('shaking');
-    setTimeout(() => mc.classList.remove('shaking'), 200);
+    // connections
+    connections.forEach(c => {
+      const l = leftPos.find(p=>p.id===c.lid);
+      const r = rightPos.find(p=>p.id===c.rid);
+      if (!l||!r) return;
+      ctx.beginPath();
+      ctx.moveTo(l.x+ITEM_R, l.y);
+      ctx.lineTo(r.x-ITEM_R, r.y);
+      ctx.strokeStyle = COMMON.has(c.lid) ? '#f4c95d' : '#e74c3c';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    });
 
-    if (cracks >= MAX) {
-      completed = true;
-      document.getElementById('maskEmoji').style.opacity = '0';
-      document.getElementById('maskEmoji').style.transition = 'opacity 0.5s';
-      document.getElementById('faceBehind').style.opacity = '1';
-      document.getElementById('faceBehind').style.fontSize = '7rem';
-      setTimeout(() => {
-        document.getElementById('successOverlay').classList.add('show');
-        window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
-      }, 700);
-    } else {
-      // update mask opacity to show wear
-      document.getElementById('maskEmoji').style.opacity = String(1 - pct*0.5);
+    // drag line
+    if (dragging && dragEnd) {
+      ctx.beginPath();
+      ctx.moveTo(dragging.x+ITEM_R, dragging.y);
+      ctx.lineTo(dragEnd.x, dragEnd.y);
+      ctx.strokeStyle = '#ffffff55';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6,4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // items
+    [...leftPos, ...rightPos].forEach(it => {
+      const isConn = connections.some(c=>c.lid===it.id||c.rid===it.id);
+      ctx.beginPath();
+      ctx.arc(it.x, it.y, ITEM_R, 0, Math.PI*2);
+      ctx.fillStyle = isConn ? '#1a3a1a' : '#12183a';
+      ctx.fill();
+      ctx.strokeStyle = isConn ? '#2ecc71' : '#2a3060';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.font = '22px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(it.emoji, it.x, it.y);
+      ctx.textBaseline = 'alphabetic';
+    });
+  }
+
+  function getPos(e) {
+    const t = e.touches ? e.touches[0] : e;
+    return {x: t.clientX, y: t.clientY};
+  }
+
+  function startDrag(e) {
+    const pos = getPos(e);
+    for (const it of leftPos) {
+      if (Math.hypot(pos.x-it.x, pos.y-it.y) < ITEM_R+8) {
+        dragging = it; dragEnd = {x:pos.x, y:pos.y};
+        return;
+      }
     }
   }
 
-  function resetGame() {
-    cracks = 0; completed = false;
-    document.getElementById('progressBar').style.width = '0%';
-    document.getElementById('progressText').textContent = '균열: 0 / 15';
-    document.getElementById('maskEmoji').style.opacity = '1';
-    document.getElementById('maskEmoji').style.transition = '';
-    document.getElementById('faceBehind').style.opacity = '0';
-    svg.innerHTML = '';
-    document.getElementById('successOverlay').classList.remove('show');
+  function moveDrag(e) {
+    if (!dragging) return;
+    e.preventDefault();
+    const pos = getPos(e);
+    dragEnd = pos;
+    draw();
   }
 
-  const mc = document.getElementById('maskContainer');
-  mc.addEventListener('click', addCrack);
-  mc.addEventListener('touchend', e => { e.preventDefault(); addCrack(); }, {passive:false});
+  function endDrag(e) {
+    if (!dragging) return;
+    const pos = dragEnd || getPos(e);
+    for (const it of rightPos) {
+      if (Math.hypot(pos.x-it.x, pos.y-it.y) < ITEM_R+12) {
+        const alreadyConn = connections.some(c=>c.lid===dragging.id||c.rid===it.id);
+        if (!alreadyConn) {
+          connections.push({lid:dragging.id, rid:it.id});
+          spawnHeart((dragging.x+it.x)/2, (dragging.y+it.y)/2);
+          document.getElementById('connectedCount').textContent = `연결: ${connections.length}개`;
+          if (connections.length >= 1) {
+            setTimeout(() => {
+              if (!completed) {
+                completed = true;
+                document.getElementById('successOverlay').classList.add('show');
+                window.parent.postMessage({ type: 'MINIGAME_COMPLETE', success: true }, '*');
+              }
+            }, 600);
+          }
+        }
+        break;
+      }
+    }
+    dragging = null; dragEnd = null;
+    draw();
+  }
+
+  function spawnHeart(x,y) {
+    const el = document.createElement('div');
+    el.className = 'heart';
+    el.textContent = '❤️';
+    el.style.cssText = `left:${x}px;top:${y}px;transform:translate(-50%,-50%)`;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(),1100);
+  }
+
+  function resetGame() {
+    document.getElementById('successOverlay').classList.remove('show');
+    init();
+  }
+
+  canvas.addEventListener('mousedown', startDrag);
+  canvas.addEventListener('mousemove', moveDrag);
+  canvas.addEventListener('mouseup', endDrag);
+  canvas.addEventListener('touchstart', startDrag, {passive:true});
+  canvas.addEventListener('touchmove', moveDrag, {passive:false});
+  canvas.addEventListener('touchend', endDrag);
+  window.addEventListener('resize', init);
+  init();
 </script>
 </body>
 </html>
