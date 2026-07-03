@@ -31,14 +31,17 @@ export default function SchoolBrightenScreen({ onContinue }) {
         position: 'relative', minHeight: '100vh', display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'flex-end', padding: '40px 24px', textAlign: 'center',
       }}>
-        <div style={{
-          fontSize: '64px', marginBottom: '16px',
-          opacity: bright ? 1 : 0, transform: bright ? 'scale(1)' : 'scale(0.5)',
-          transition: 'all 1.5s ease 0.5s',
-          filter: 'drop-shadow(0 0 30px #fbbf24)',
-        }}>
-          ✨
-        </div>
+        <img
+          src="/lumos-crystal.png"
+          alt="루모스 크리스탈"
+          style={{
+            width: '160px', height: '160px', objectFit: 'contain',
+            marginBottom: '16px',
+            opacity: bright ? 1 : 0, transform: bright ? 'scale(1)' : 'scale(0.5)',
+            transition: 'all 1.5s ease 0.5s',
+            filter: 'drop-shadow(0 0 40px #fbbf24) drop-shadow(0 0 20px rgba(251,191,36,0.6))',
+          }}
+        />
         <h1 style={{
           color: '#fbbf24', fontSize: '26px', fontWeight: '900', marginBottom: '12px',
           textShadow: '0 2px 16px rgba(251,191,36,0.6)',
