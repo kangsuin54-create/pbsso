@@ -10,8 +10,7 @@ const DOOR_GAP = 70
 function Door({ stage, cleared, locked, onClick }) {
   return (
     <button
-      onClick={onClick}
-      disabled={locked}
+      onClick={locked ? () => alert(`레벨 ${stage.minLevel} 이상 필요해요!\n(현재 레벨을 높이려면 다른 스테이지를 먼저 클리어하세요)`) : onClick}
       style={{
         position: 'relative', width: DOOR_WIDTH, height: '210px', flexShrink: 0,
         border: 'none', cursor: locked ? 'not-allowed' : 'pointer', background: 'none', padding: 0,

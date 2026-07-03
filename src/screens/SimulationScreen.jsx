@@ -214,24 +214,21 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
           스킬카드를 순서대로 사용해서 어둠을 정화하세요! ({usedCardIds.length}/5)
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {stage.skillCards.map((card, i) => {
+          {stage.skillCards.map((card) => {
             const used = usedCardIds.includes(card.id)
-            const isNext = !used && usedCardIds.length === i
             return (
               <button
                 key={card.id}
-                onClick={() => isNext && handleUseCard(card)}
+                onClick={() => !used && handleUseCard(card)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '14px',
                   padding: '14px 16px', borderRadius: '14px', border: 'none',
                   background: used
                     ? 'rgba(34,197,94,0.15)'
-                    : isNext
-                      ? `linear-gradient(135deg, ${stage.monster.darkColor}80, rgba(255,255,255,0.05))`
-                      : 'rgba(255,255,255,0.03)',
-                  outline: isNext ? `2px solid ${stage.monster.color}60` : 'none',
-                  cursor: isNext ? 'pointer' : 'default',
-                  opacity: !used && !isNext ? 0.4 : 1,
+                    : `linear-gradient(135deg, ${stage.monster.darkColor}80, rgba(255,255,255,0.05))`,
+                  outline: !used ? `1px solid ${stage.monster.color}40` : 'none',
+                  cursor: used ? 'default' : 'pointer',
+                  opacity: 1,
                   transition: 'all 0.2s',
                 }}
               >
@@ -239,7 +236,7 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
                   width: '44px', height: '44px', borderRadius: '12px',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: '22px',
-                  background: used ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.05)',
+                  background: used ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.08)',
                 }}>
                   {used ? '✅' : card.emoji}
                 </div>
@@ -248,11 +245,11 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
                     {card.name}
                   </div>
                   <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>
-                    {used ? '사용 완료 — 어둠 -20%' : isNext ? '탭하여 사용' : `${i + 1}번째 카드`}
+                    {used ? '사용 완료 — 어둠 -20%' : '⚔️ 탭하여 사용'}
                   </div>
                 </div>
-                {isNext && (
-                  <div style={{ color: '#fbbf24', fontSize: '18px', animation: 'pulse 1s infinite' }}>→</div>
+                {!used && (
+                  <div style={{ color: '#fbbf24', fontSize: '16px' }}>→</div>
                 )}
               </button>
             )
