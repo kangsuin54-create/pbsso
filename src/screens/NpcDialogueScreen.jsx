@@ -61,9 +61,16 @@ export default function NpcDialogueScreen({ stageId, actions, onComplete }) {
     }
   }
 
+  const bgStyle = stage.backgroundImage
+    ? {
+        backgroundImage: `linear-gradient(180deg, rgba(10,8,25,0.6) 0%, rgba(10,8,25,0.88) 100%), url(${stage.backgroundImage})`,
+        backgroundSize: 'cover', backgroundPosition: 'center',
+      }
+    : { background: 'linear-gradient(180deg, #0f0c29 0%, #1a1035 100%)' }
+
   if (allDone) {
     return (
-      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f0c29, #1a1035)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', textAlign: 'center' }}>
+      <div style={{ minHeight: '100vh', ...bgStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', textAlign: 'center' }}>
         <MonsterImage src={stage.npcImage} emoji="🧑" size={80} />
         <h2 style={{ color: '#fbbf24', fontSize: '22px', fontWeight: 'bold', margin: '20px 0 12px' }}>
           {stage.npc}: "준비됐어요!"
@@ -91,7 +98,7 @@ export default function NpcDialogueScreen({ stageId, actions, onComplete }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #0f0c29 0%, #1a1035 100%)', padding: `20px ${pad}px 80px` }}>
+    <div style={{ minHeight: '100vh', ...bgStyle, padding: `20px ${pad}px 80px` }}>
       {/* 헤더 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
         <div style={{
