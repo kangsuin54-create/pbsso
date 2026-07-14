@@ -9,6 +9,7 @@ import CorridorScreen from './screens/CorridorScreen'
 import NpcDialogueScreen from './screens/NpcDialogueScreen'
 import SimulationScreen from './screens/SimulationScreen'
 import SchoolBrightenScreen from './screens/SchoolBrightenScreen'
+import OutroScreen from './screens/OutroScreen'
 import DashboardScreen from './screens/DashboardScreen'
 import ShopScreen from './screens/ShopScreen'
 import MyPageScreen from './screens/MyPageScreen'
@@ -211,7 +212,10 @@ export default function App() {
       stageId={currentStage}
       actions={gameActions}
       onComplete={() => setScreen('stage_select')}
-      onAllCleared={() => setScreen('finale')}
+      onAllCleared={() => setScreen('outro')}
+    />,
+    outro: <OutroScreen
+      onComplete={() => setScreen('finale')}
     />,
     finale: <SchoolBrightenScreen
       onContinue={() => setScreen('dashboard')}
