@@ -47,7 +47,7 @@ export default function StoryIntroScreen({ onComplete }) {
         alt={`인트로 ${idx + 1}`}
         style={{
           width: '100%', height: '100vh',
-          objectFit: 'contain',
+          objectFit: 'cover',
           opacity: fade ? 1 : 0,
           transition: 'opacity 0.2s ease',
           display: 'block',

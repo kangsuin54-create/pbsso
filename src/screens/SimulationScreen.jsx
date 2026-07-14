@@ -191,31 +191,32 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
         </h2>
       </div>
 
-      {/* 몬스터 카드 */}
-      <div style={{
-        background: 'rgba(255,255,255,0.03)', border: `1px solid ${stage.monster.color}30`,
-        borderRadius: '20px', padding: '24px', textAlign: 'center', marginBottom: '24px',
-      }}>
+      {/* 몬스터 — 배경에 자연스럽게 */}
+      <div style={{ position: 'relative', textAlign: 'center', marginBottom: '16px' }}>
+        {/* 몬스터 이미지 */}
         <div style={{
-          display: 'flex', justifyContent: 'center', marginBottom: '12px',
-          opacity: 0.3 + (darkness / 100) * 0.7,
-          animation: monsterHit ? 'hitShake 0.1s linear 5' : darkness > 0 ? 'shake 2s ease-in-out infinite' : 'none',
+          display: 'flex', justifyContent: 'center',
+          opacity: 0.25 + (darkness / 100) * 0.75,
+          animation: monsterHit ? 'hitShake 0.1s linear 5' : darkness > 0 ? 'shake 2.5s ease-in-out infinite' : 'none',
           filter: monsterHit
-            ? 'drop-shadow(0 0 20px #ef4444) saturate(3) sepia(1) hue-rotate(-20deg)'
-            : `drop-shadow(0 0 20px ${stage.monster.color})`,
-          transition: 'filter 0.15s ease',
+            ? 'drop-shadow(0 0 40px #ef4444) saturate(4) hue-rotate(-20deg)'
+            : `drop-shadow(0 0 40px ${stage.monster.color}88) drop-shadow(0 4px 20px rgba(0,0,0,0.6))`,
+          transition: 'filter 0.2s ease, opacity 0.6s ease',
         }}>
-          <MonsterImage src={stage.monster.image} emoji={stage.monster.emoji} size={72} />
+          <MonsterImage src={stage.monster.image} emoji={stage.monster.emoji} size={120} />
         </div>
-        <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', marginBottom: '2px' }}>
-          {stage.monster.nameEn}
+        {/* 이름/정보 오버레이 */}
+        <div style={{ marginTop: '10px' }}>
+          <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '10px', letterSpacing: '2px' }}>
+            {stage.monster.nameEn}
+          </div>
+          <h3 style={{ color: stage.monster.color || 'white', fontSize: '18px', fontWeight: 'bold', margin: '2px 0 2px' }}>
+            {stage.monster.name}
+          </h3>
+          <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', margin: '0 0 12px' }}>
+            {stage.theme} 몬스터
+          </p>
         </div>
-        <h3 style={{ color: stage.monster.color || 'white', fontSize: '20px', fontWeight: 'bold', margin: '0 0 4px' }}>
-          {stage.monster.name}
-        </h3>
-        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', marginBottom: '20px' }}>
-          {stage.theme} 몬스터
-        </p>
         <DarkGauge value={darkness} />
       </div>
 

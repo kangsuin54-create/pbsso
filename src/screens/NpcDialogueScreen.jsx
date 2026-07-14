@@ -31,9 +31,103 @@ function RewardPopup({ card, onClose }) {
   )
 }
 
+// NPC 인트로 대화 화면
+function NpcIntroDialogue({ stage, onDone }) {
+  const lines = stage.npcIntro || []
+  const [lineIdx, setLineIdx] = useState(0)
+  const [visible, setVisible] = useState(true)
+
+  const advance = () => {
+    if (lineIdx < lines.length - 1) {
+      setVisible(false)
+      setTimeout(() => { setLineIdx(i => i + 1); setVisible(true) }, 180)
+    } else {
+      onDone()
+    }
+  }
+
+  const bgStyle = stage.backgroundImage
+    ? {
+        backgroundImage: `linear-gradient(180deg, rgba(10,8,25,0.45) 0%, rgba(10,8,25,0.85) 100%), url(${stage.backgroundImage})`,
+        backgroundSize: 'cover', backgroundPosition: 'center',
+      }
+    : { background: 'linear-gradient(180deg, #0f0c29 0%, #1a1035 100%)' }
+
+  return (
+    <div
+      onClick={advance}
+      style={{
+        minHeight: '100vh', ...bgStyle,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'flex-end',
+        padding: '24px 24px 60px',
+        cursor: 'pointer', userSelect: 'none',
+      }}
+    >
+      {/* NPC 이미지 */}
+      <div style={{
+        flex: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        marginBottom: '24px',
+      }}>
+        <img
+          src={stage.npcImage}
+          alt={stage.npc}
+          style={{
+            maxHeight: '55vh', maxWidth: '80vw',
+            objectFit: 'contain',
+            filter: 'drop-shadow(0 8px 32px rgba(0,0,0,0.7))',
+          }}
+          onError={e => { e.target.style.display = 'none' }}
+        />
+      </div>
+
+      {/* 말풍선 */}
+      <div style={{
+        width: '100%', maxWidth: '480px',
+        background: 'rgba(255,255,255,0.97)',
+        borderRadius: '20px', padding: '20px 22px',
+        boxShadow: '0 4px 32px rgba(0,0,0,0.4)',
+        opacity: visible ? 1 : 0,
+        transition: 'opacity 0.18s ease',
+        position: 'relative',
+      }}>
+        {/* 화살표 */}
+        <div style={{
+          position: 'absolute', top: '-10px', left: '40px',
+          width: 0, height: 0,
+          borderLeft: '10px solid transparent', borderRight: '10px solid transparent',
+          borderBottom: '10px solid rgba(255,255,255,0.97)',
+        }} />
+        <div style={{ color: stage.monster.color, fontWeight: 'bold', fontSize: '12px', marginBottom: '8px' }}>
+          {stage.npc}
+        </div>
+        <p style={{ margin: 0, fontSize: '15px', color: '#1f2937', lineHeight: '1.6' }}>
+          {lines[lineIdx]}
+        </p>
+        <div style={{ textAlign: 'right', marginTop: '12px', color: '#9ca3af', fontSize: '12px' }}>
+          {lineIdx < lines.length - 1 ? '터치해서 계속 ▶' : '터치해서 시작 ▶'}
+        </div>
+      </div>
+
+      {/* 인디케이터 */}
+      <div style={{ display: 'flex', gap: '6px', marginTop: '16px' }}>
+        {lines.map((_, i) => (
+          <div key={i} style={{
+            width: i === lineIdx ? '20px' : '6px', height: '6px',
+            borderRadius: '3px',
+            background: i === lineIdx ? '#fbbf24' : 'rgba(255,255,255,0.3)',
+            transition: 'all 0.25s ease',
+          }} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function NpcDialogueScreen({ stageId, actions, onComplete }) {
   const isMobile = useIsMobile()
   const stage = LUMOS_STAGES.find(s => s.id === stageId)
+  const [introDone, setIntroDone] = useState(false)
   const [currentIdx, setCurrentIdx] = useState(0)
   const [showMinigame, setShowMinigame] = useState(false)
   const [learnedIds, setLearnedIds] = useState([])
@@ -42,6 +136,11 @@ export default function NpcDialogueScreen({ stageId, actions, onComplete }) {
   const pad = isMobile ? 16 : 24
 
   if (!stage) return null
+
+  // NPC 인트로 대화 먼저 보여주기
+  if (!introDone && stage.npcIntro?.length > 0) {
+    return <NpcIntroDialogue stage={stage} onDone={() => setIntroDone(true)} />
+  }
 
   const card = stage.skillCards[currentIdx]
   const totalCards = stage.skillCards.length
@@ -71,8 +170,12 @@ export default function NpcDialogueScreen({ stageId, actions, onComplete }) {
   if (allDone) {
     return (
       <div style={{ minHeight: '100vh', ...bgStyle, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', textAlign: 'center' }}>
-        <MonsterImage src={stage.npcImage} emoji="🧑" size={80} />
-        <h2 style={{ color: '#fbbf24', fontSize: '22px', fontWeight: 'bold', margin: '20px 0 12px' }}>
+        <img
+          src={stage.npcImage} alt={stage.npc}
+          style={{ width: '100px', height: '100px', objectFit: 'contain', marginBottom: '16px', filter: 'drop-shadow(0 4px 16px rgba(0,0,0,0.5))' }}
+          onError={e => { e.target.style.display = 'none' }}
+        />
+        <h2 style={{ color: '#fbbf24', fontSize: '22px', fontWeight: 'bold', margin: '0 0 12px' }}>
           {stage.npc}: "준비됐어요!"
         </h2>
         <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', marginBottom: '8px' }}>
@@ -92,7 +195,6 @@ export default function NpcDialogueScreen({ stageId, actions, onComplete }) {
         }}>
           🚪 {stage.classroom}으로 입장!
         </button>
-        <style>{`@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }`}</style>
       </div>
     )
   }
@@ -141,7 +243,7 @@ export default function NpcDialogueScreen({ stageId, actions, onComplete }) {
         ))}
       </div>
 
-      {/* NPC 미션 안내 */}
+      {/* NPC + 미션 안내 */}
       <div style={{
         borderRadius: '20px', minHeight: '300px', padding: '24px',
         background: `linear-gradient(135deg, ${stage.monster.darkColor}60, rgba(0,0,0,0.4))`,
@@ -154,11 +256,14 @@ export default function NpcDialogueScreen({ stageId, actions, onComplete }) {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <MonsterImage src={stage.npcImage} emoji="🧑" size={88} style={{ marginBottom: '8px' }} />
+            <img
+              src={stage.npcImage} alt={stage.npc}
+              style={{ width: '88px', height: '88px', objectFit: 'contain', marginBottom: '8px', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}
+              onError={e => { e.target.style.display = 'none' }}
+            />
             <div style={{ color: stage.monster.color, fontWeight: 'bold', fontSize: '13px', marginBottom: '14px' }}>
               {stage.npc}
             </div>
-            {/* 말풍선 */}
             <div style={{
               position: 'relative', background: 'rgba(255,255,255,0.95)', borderRadius: '16px',
               padding: '16px 18px', maxWidth: '320px', marginBottom: '16px',
@@ -177,7 +282,7 @@ export default function NpcDialogueScreen({ stageId, actions, onComplete }) {
                   borderLeft: '3px solid #fbbf24',
                 }}>
                   <p style={{ margin: 0, fontSize: '13px', color: '#92400e', fontWeight: 'bold', textAlign: 'center' }}>
-                    🎮 {card.missionInstruction}
+                    🎯 {card.missionInstruction}
                   </p>
                 </div>
               )}
