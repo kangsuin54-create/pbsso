@@ -3,7 +3,6 @@ import { LUMOS_STAGES } from '../data/lumosStages'
 import useIsMobile from '../hooks/useIsMobile'
 import MonsterImage from '../components/MonsterImage'
 
-// 몬스터 어둠 게이지 — RPG HP바 스타일 (어두울수록 붉게, 정화될수록 황금색으로)
 function DarkGauge({ value }) {
   const barColor = value > 50 ? '#ef4444' : value > 0 ? '#fbbf24' : '#34d399'
   return (
@@ -25,7 +24,6 @@ function DarkGauge({ value }) {
   )
 }
 
-// 카드 사용 효과
 function CardFlash({ card, onDone }) {
   useEffect(() => {
     const t = setTimeout(onDone, 1500)
@@ -37,9 +35,7 @@ function CardFlash({ card, onDone }) {
       position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: 'rgba(0,0,0,0.7)', zIndex: 200,
     }}>
-      <div style={{
-        textAlign: 'center', animation: 'zoomIn 0.3s ease',
-      }}>
+      <div style={{ textAlign: 'center', animation: 'zoomIn 0.3s ease' }}>
         <div style={{ fontSize: '64px', marginBottom: '12px' }}>{card.emoji}</div>
         <div style={{ color: '#fbbf24', fontWeight: 'bold', fontSize: '18px', marginBottom: '4px' }}>{card.name}</div>
         <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px' }}>스킬 사용! 어둠 -20% ⬇️</div>
@@ -49,7 +45,6 @@ function CardFlash({ card, onDone }) {
   )
 }
 
-// 정화 완료 화면
 function PurificationComplete({ stage, onContinue }) {
   return (
     <div style={{
@@ -100,6 +95,8 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
   const [usedCardIds, setUsedCardIds] = useState([])
   const [flashCard, setFlashCard] = useState(null)
   const [purified, setPurified] = useState(false)
+  const [monsterHit, setMonsterHit] = useState(false)
+  const [bgCleared, setBgCleared] = useState(false)
   const pad = isMobile ? 16 : 24
 
   if (!stage) return null
@@ -108,6 +105,9 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
 
   const handleUseCard = (card) => {
     if (usedCardIds.includes(card.id) || flashCard) return
+    // 몬스터 피격 효과
+    setMonsterHit(true)
+    setTimeout(() => setMonsterHit(false), 600)
     setFlashCard(card)
   }
 
@@ -119,13 +119,14 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
     const newDarkness = Math.max(0, 100 - newUsed.length * 20)
     setDarkness(newDarkness)
     if (newDarkness === 0) {
-      // 정화 완료
       actions.addExp(stage.exp)
       actions.addCoins(stage.coins)
       actions.updateProgress(stage.progressKey, 25)
       actions.addBadge(`${stage.monster.name} 정화 완료 ${stage.purificationItem.emoji}`)
       actions.clearStage(stageId, stage.purificationItem)
-      setTimeout(() => setPurified(true), 500)
+      // 배경 전환 후 팝업
+      setTimeout(() => setBgCleared(true), 300)
+      setTimeout(() => setPurified(true), 1200)
     }
   }
 
@@ -135,14 +136,22 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
     else onComplete()
   }
 
+  // 클리어한 스테이지 재진입 시 클리어 배경 표시
   if (alreadyCleared) {
+    const clearedBg = stage.clearedBackgroundImage || stage.backgroundImage
     return (
-      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f0c29, #1a1035)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', textAlign: 'center' }}>
+      <div style={{
+        minHeight: '100vh',
+        backgroundImage: `linear-gradient(180deg, rgba(10,8,25,0.15) 0%, rgba(10,8,25,0.55) 100%), url(${clearedBg})`,
+        backgroundSize: 'cover', backgroundPosition: 'center',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        padding: '24px', textAlign: 'center',
+      }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
           <MonsterImage src={stage.purificationItem.image} emoji={stage.purificationItem.emoji} size={64} />
         </div>
         <h2 style={{ color: '#34d399', fontSize: '20px', fontWeight: 'bold', marginBottom: '8px' }}>이미 정화 완료!</h2>
-        <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '14px', marginBottom: '24px' }}>
+        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', marginBottom: '24px' }}>
           {stage.monster.name}은 이미 빛을 되찾았어요 ✨
         </p>
         <button onClick={onComplete} style={{
@@ -156,13 +165,22 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
     )
   }
 
+  // 배경 결정: 정화 완료 후 클리어 배경으로 전환
+  const bgImage = bgCleared && stage.clearedBackgroundImage
+    ? stage.clearedBackgroundImage
+    : stage.backgroundImage
+  const bgOverlay = bgCleared
+    ? 'linear-gradient(180deg, rgba(10,8,25,0.1) 0%, rgba(10,8,25,0.45) 100%)'
+    : 'linear-gradient(180deg, rgba(10,8,25,0.25) 0%, rgba(10,8,25,0.75) 100%)'
+
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundImage: stage.backgroundImage
-        ? `linear-gradient(180deg, rgba(10,8,25,0.25) 0%, rgba(10,8,25,0.75) 100%), url(${stage.backgroundImage})`
+      backgroundImage: bgImage
+        ? `${bgOverlay}, url(${bgImage})`
         : 'linear-gradient(180deg, #0f0c29 0%, #1a1035 100%)',
       backgroundSize: 'cover', backgroundPosition: 'center',
+      transition: 'background-image 1.2s ease',
       padding: `20px ${pad}px 80px`,
     }}>
       {/* 헤더 */}
@@ -180,9 +198,12 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
       }}>
         <div style={{
           display: 'flex', justifyContent: 'center', marginBottom: '12px',
-          filter: `drop-shadow(0 0 20px ${stage.monster.color})`,
           opacity: 0.3 + (darkness / 100) * 0.7,
-          animation: darkness > 0 ? 'shake 2s ease-in-out infinite' : 'none',
+          animation: monsterHit ? 'hitShake 0.1s linear 5' : darkness > 0 ? 'shake 2s ease-in-out infinite' : 'none',
+          filter: monsterHit
+            ? 'drop-shadow(0 0 20px #ef4444) saturate(3) sepia(1) hue-rotate(-20deg)'
+            : `drop-shadow(0 0 20px ${stage.monster.color})`,
+          transition: 'filter 0.15s ease',
         }}>
           <MonsterImage src={stage.monster.image} emoji={stage.monster.emoji} size={72} />
         </div>
@@ -228,7 +249,6 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
                     : `linear-gradient(135deg, ${stage.monster.darkColor}80, rgba(255,255,255,0.05))`,
                   outline: !used ? `1px solid ${stage.monster.color}40` : 'none',
                   cursor: used ? 'default' : 'pointer',
-                  opacity: 1,
                   transition: 'all 0.2s',
                 }}
               >
@@ -248,9 +268,7 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
                     {used ? '사용 완료 — 어둠 -20%' : '⚔️ 탭하여 사용'}
                   </div>
                 </div>
-                {!used && (
-                  <div style={{ color: '#fbbf24', fontSize: '16px' }}>→</div>
-                )}
+                {!used && <div style={{ color: '#fbbf24', fontSize: '16px' }}>→</div>}
               </button>
             )
           })}
@@ -264,8 +282,12 @@ export default function SimulationScreen({ playerData, stageId, actions, onCompl
         @keyframes shake {
           0%,100%{transform:rotate(-2deg)} 50%{transform:rotate(2deg)}
         }
-        @keyframes pulse {
-          0%,100%{opacity:1} 50%{opacity:0.4}
+        @keyframes hitShake {
+          0%{transform:translateX(-8px)}
+          25%{transform:translateX(8px)}
+          50%{transform:translateX(-6px)}
+          75%{transform:translateX(6px)}
+          100%{transform:translateX(0)}
         }
       `}</style>
     </div>
